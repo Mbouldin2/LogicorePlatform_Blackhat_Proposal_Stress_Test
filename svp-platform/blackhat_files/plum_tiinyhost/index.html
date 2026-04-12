@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-id="th-modified">BLACK HAT PROPOSAL STRESS TEST — FIRE SYSTEM C2 CYBERSECURITY</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600;700&family=Exo+2:wght@200;300;400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-void: #0d1420;
+    --bg-panel: #111927;
+    --bg-card: #16202f;
+    --bg-elevated: #1c2b3f;
+    --accent-red: #ff3545;
+    --accent-amber: #ffbb00;
+    --accent-cyan: #00eeff;
+    --accent-green: #00ff99;
+    --accent-purple: #a78bfa;
+    --text-primary: #f0f4ff;
+    --text-secondary: #9db3cc;
+    --text-dim: #5a7090;
+    --border-hot: rgba(255,53,69,0.5);
+    --border-dim: rgba(0,238,255,0.18);
+    --grid-line: rgba(0,238,255,0.06);
+    --glow-red: 0 0 20px rgba(255,53,69,0.4), 0 0 60px rgba(255,53,69,0.12);
+    --glow-cyan: 0 0 20px rgba(0,238,255,0.35), 0 0 60px rgba(0,238,255,0.1);
+    --glow-amber: 0 0 20px rgba(255,187,0,0.4), 0 0 60px rgba(255,187,0,0.12);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg-void);
+    color: var(--text-primary);
+    font-family: 'Rajdhani', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  /* ANIMATED SCAN LINE */
+  body::before {
+    content: '';
+    position: fixed;
+    top: -100%;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+    animation: scanline 6s linear infinite;
+    z-index: 1000;
+    pointer-events: none;
+    opacity: 0.4;
+  }
+
+  @keyframes scanline {
+    0% { top: -2%; }
+    100% { top: 102%; }
+  }
+
+  /* NOISE OVERLAY */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 999;
+    opacity: 0.3;
+  }
+
+  /* HEADER */
+  .header {
+    padding: 28px 40px 20px;
+    border-bottom: 1px solid var(--border-dim);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    position: relative;
+  }
+
+  .header::before {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 40px;
+    width: 280px;
+    height: 1px;
+    background: linear-gradient(90deg, var(--accent-red), transparent);
+  }
+
+  .header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .threat-tag {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    color: var(--accent-red);
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .threat-tag::before {
+    content: '//';
+    opacity: 0.5;
+  }
+
+  .header-title {
+    font-family: 'Exo 2', sans-serif;
+    font-size: 32px;
+    font-weight: 900;
+    letter-spacing: -0.5px;
+    color: var(--text-primary);
+    line-height: 1;
+  }
+
+  .header-title span {
+    color: var(--accent-red);
+  }
+
+  .header-sub {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 16px;
+    color: var(--text-secondary);
+    letter-spacing: 2px;
+    margin-top: 4px;
+  }
+
+  .header-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+  }
+
+  .live-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 16px;
+    color: var(--accent-red);
+    letter-spacing: 2px;
+  }
+
+  .live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent-red);
+    animation: pulse-red 1.5s ease-in-out infinite;
+    box-shadow: var(--glow-red);
+  }
+
+  @keyframes pulse-red {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.7); }
+  }
+
+  .timestamp {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+  }
+
+  /* LAYOUT */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    grid-template-rows: auto;
+    gap: 0;
+    min-height: calc(100vh - 95px);
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    border-right: 1px solid var(--border-dim);
+    padding: 24px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .sidebar-section-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    color: var(--text-dim);
+    letter-spacing: 3px;
+    padding: 0 24px;
+    margin-bottom: 4px;
+    margin-top: 16px;
+  }
+
+  .sidebar-section-label:first-child { margin-top: 0; }
+
+  .nav-item {
+    padding: 10px 24px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: all 0.15s ease;
+    border-left: 2px solid transparent;
+    position: relative;
+  }
+
+  .nav-item:hover, .nav-item.active {
+    background: rgba(0,229,255,0.04);
+    border-left-color: var(--accent-cyan);
+  }
+
+  .nav-item.active .nav-label { color: var(--accent-cyan); }
+
+  .nav-item.critical { border-left-color: transparent; }
+  .nav-item.critical:hover, .nav-item.critical.active {
+    background: rgba(255,32,48,0.06);
+    border-left-color: var(--accent-red);
+  }
+  .nav-item.critical.active .nav-label { color: var(--accent-red); }
+
+  .nav-label {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: 0.5px;
+  }
+
+  .nav-badge {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    padding: 2px 6px;
+    border-radius: 2px;
+    font-weight: 400;
+  }
+
+  .badge-red { background: rgba(255,32,48,0.15); color: var(--accent-red); border: 1px solid rgba(255,32,48,0.3); }
+  .badge-amber { background: rgba(255,170,0,0.12); color: var(--accent-amber); border: 1px solid rgba(255,170,0,0.3); }
+  .badge-cyan { background: rgba(0,229,255,0.08); color: var(--accent-cyan); border: 1px solid rgba(0,229,255,0.2); }
+  .badge-green { background: rgba(0,255,136,0.08); color: var(--accent-green); border: 1px solid rgba(0,255,136,0.2); }
+
+  /* SCORE RING PANEL */
+  .score-panel {
+    margin: 16px 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-dim);
+    border-radius: 4px;
+    padding: 20px;
+  }
+
+  .score-panel-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    color: var(--text-dim);
+    letter-spacing: 3px;
+    margin-bottom: 16px;
+  }
+
+  .ring-container {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .ring-svg {
+    width: 72px;
+    height: 72px;
+    transform: rotate(-90deg);
+    flex-shrink: 0;
+  }
+
+  .ring-bg { fill: none; stroke: rgba(255,32,48,0.1); stroke-width: 6; }
+  .ring-progress { fill: none; stroke: var(--accent-red); stroke-width: 6; stroke-linecap: round; stroke-dasharray: 188; stroke-dashoffset: 78; transition: stroke-dashoffset 1.5s ease; }
+
+  .ring-text-group { display: flex; flex-direction: column; gap: 2px; }
+  .ring-value { font-family: 'Exo 2', sans-serif; font-size: 34px; font-weight: 900; color: var(--accent-red); line-height: 1; }
+  .ring-label { font-family: 'Share Tech Mono', monospace; font-size: 15px; color: var(--text-dim); letter-spacing: 2px; }
+  .ring-sublabel { font-family: 'Rajdhani', sans-serif; font-size: 15px; color: var(--text-secondary); font-weight: 500; }
+
+  .mini-scores {
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .mini-score-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .mini-score-label { font-family: 'Rajdhani', sans-serif; font-size: 16px; color: var(--text-secondary); font-weight: 600; flex: 1; }
+
+  .mini-bar-track {
+    flex: 2;
+    height: 4px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .mini-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 1.5s ease;
+  }
+
+  .mini-score-val { font-family: 'Share Tech Mono', monospace; font-size: 15px; width: 28px; text-align: right; }
+
+  /* MAIN CONTENT */
+  .content {
+    padding: 28px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* KILL SHOTS BANNER */
+  .kill-shots-banner {
+    background: linear-gradient(135deg, rgba(255,32,48,0.08) 0%, rgba(255,32,48,0.02) 100%);
+    border: 1px solid var(--border-hot);
+    border-radius: 4px;
+    padding: 20px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .kill-shots-banner::before {
+    content: '⚠';
+    position: absolute;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 90px;
+    opacity: 0.04;
+  }
+
+  .kill-shots-banner::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, var(--accent-red), transparent 60%);
+  }
+
+  .ks-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .ks-icon {
+    width: 32px;
+    height: 32px;
+    background: rgba(255,32,48,0.12);
+    border: 1px solid rgba(255,32,48,0.3);
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+  }
+
+  .ks-title {
+    font-family: 'Exo 2', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent-red);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .ks-subtitle { font-family: 'Rajdhani', sans-serif; font-size: 15px; color: var(--text-secondary); }
+
+  .kill-shots-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  .kill-shot-card {
+    background: rgba(255,32,48,0.04);
+    border: 1px solid rgba(255,32,48,0.15);
+    border-radius: 3px;
+    padding: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .kill-shot-card:hover {
+    background: rgba(255,32,48,0.08);
+    border-color: rgba(255,32,48,0.35);
+    transform: translateY(-1px);
+  }
+
+  .ks-num {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    color: var(--accent-red);
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+    opacity: 0.7;
+  }
+
+  .ks-title-text {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+    line-height: 1.3;
+  }
+
+  .ks-impact {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    color: var(--accent-amber);
+    letter-spacing: 1px;
+  }
+
+  /* VULNERABILITY TABLE */
+  .panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border-dim);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border-dim);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg-elevated);
+  }
+
+  .panel-title {
+    font-family: 'Exo 2', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .panel-title-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+
+  .dot-red { background: var(--accent-red); box-shadow: var(--glow-red); }
+  .dot-cyan { background: var(--accent-cyan); box-shadow: var(--glow-cyan); }
+  .dot-amber { background: var(--accent-amber); box-shadow: var(--glow-amber); }
+
+  .panel-count {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 16px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+  }
+
+  /* VULNERABILITY ROWS */
+  .vuln-table { width: 100%; }
+
+  .vuln-header-row {
+    display: grid;
+    grid-template-columns: 80px 140px 1fr 120px 100px;
+    gap: 0;
+    padding: 8px 20px;
+    background: rgba(0,229,255,0.03);
+    border-bottom: 1px solid var(--border-dim);
+  }
+
+  .vuln-th {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .vuln-row {
+    display: grid;
+    grid-template-columns: 80px 140px 1fr 120px 100px;
+    gap: 0;
+    padding: 14px 20px;
+    border-bottom: 1px solid rgba(0,229,255,0.04);
+    cursor: pointer;
+    transition: background 0.15s ease;
+    animation: fadeInRow 0.4s ease both;
+  }
+
+  .vuln-row:hover { background: rgba(0,229,255,0.03); }
+  .vuln-row:last-child { border-bottom: none; }
+
+  @keyframes fadeInRow {
+    from { opacity: 0; transform: translateX(-8px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .vuln-id {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 16px;
+    color: var(--accent-cyan);
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+  }
+
+  .vuln-type-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    border-radius: 2px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .tag-deficiency { background: rgba(255,32,48,0.15); color: var(--accent-red); border: 1px solid rgba(255,32,48,0.25); }
+  .tag-weakness { background: rgba(255,170,0,0.12); color: var(--accent-amber); border: 1px solid rgba(255,170,0,0.25); }
+  .tag-compliance { background: rgba(139,92,246,0.12); color: var(--accent-purple); border: 1px solid rgba(139,92,246,0.25); }
+  .tag-evidence { background: rgba(0,229,255,0.08); color: var(--accent-cyan); border: 1px solid rgba(0,229,255,0.2); }
+
+  .vuln-desc {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 15px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .vuln-title-text { color: var(--text-primary); font-weight: 600; font-size: 15px; }
+
+  .impact-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 2px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    letter-spacing: 1px;
+    align-self: flex-start;
+  }
+
+  .impact-critical { background: rgba(255,32,48,0.12); color: var(--accent-red); border: 1px solid rgba(255,32,48,0.2); }
+  .impact-high { background: rgba(255,170,0,0.1); color: var(--accent-amber); border: 1px solid rgba(255,170,0,0.2); }
+  .impact-medium { background: rgba(0,229,255,0.06); color: var(--accent-cyan); border: 1px solid rgba(0,229,255,0.15); }
+
+  .vuln-lens {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 16px;
+    color: var(--text-dim);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+  }
+
+  /* BOTTOM GRID */
+  .bottom-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+
+  /* COMPLIANCE MATRIX */
+  .compliance-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px 20px;
+  }
+
+  .compliance-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.02);
+    border-radius: 3px;
+    border: 1px solid rgba(255,255,255,0.04);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .compliance-row:hover { background: rgba(255,255,255,0.04); }
+
+  .compliance-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
+  }
+
+  .ci-fail { background: rgba(255,32,48,0.15); border: 1px solid rgba(255,32,48,0.3); }
+  .ci-warn { background: rgba(255,170,0,0.12); border: 1px solid rgba(255,170,0,0.3); }
+  .ci-pass { background: rgba(0,255,136,0.08); border: 1px solid rgba(0,255,136,0.25); }
+  .ci-na { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); }
+
+  .compliance-name {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 16px;
+    color: var(--text-secondary);
+    flex: 1;
+  }
+
+  .compliance-status {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 1px;
+  }
+
+  .cs-fail { color: var(--accent-red); }
+  .cs-warn { color: var(--accent-amber); }
+  .cs-pass { color: var(--accent-green); }
+  .cs-na { color: var(--text-dim); }
+
+  /* SCORING CEILING */
+  .ceiling-chart {
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .ceiling-item {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .ceiling-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .ceiling-factor {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .ceiling-val-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .ceiling-current {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 16px;
+  }
+
+  .ceiling-max {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    color: var(--text-dim);
+  }
+
+  .ceiling-track {
+    height: 6px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .ceiling-fill {
+    height: 100%;
+    border-radius: 3px;
+    position: relative;
+    transition: width 1.5s ease;
+  }
+
+  .ceiling-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 30px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3));
+    border-radius: 3px;
+  }
+
+  .cf-red { background: linear-gradient(90deg, #660010, var(--accent-red)); }
+  .cf-amber { background: linear-gradient(90deg, #664400, var(--accent-amber)); }
+  .cf-cyan { background: linear-gradient(90deg, #005966, var(--accent-cyan)); }
+  .cf-green { background: linear-gradient(90deg, #004422, var(--accent-green)); }
+  .cf-purple { background: linear-gradient(90deg, #3b1f7a, var(--accent-purple)); }
+
+  .adjectival-tag {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    padding: 2px 6px;
+    border-radius: 2px;
+    letter-spacing: 1px;
+  }
+
+  /* FOOTER BAR */
+  .footer-bar {
+    padding: 10px 40px;
+    border-top: 1px solid var(--border-dim);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg-panel);
+  }
+
+  .footer-text {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+  }
+
+  .footer-badges {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .footer-badge {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    padding: 3px 8px;
+    border-radius: 2px;
+    letter-spacing: 2px;
+  }
+
+  /* VERDICT BAR */
+  .verdict-bar {
+    background: var(--bg-card);
+    border: 1px solid var(--border-dim);
+    border-left: 3px solid var(--accent-amber);
+    border-radius: 4px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .verdict-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    color: var(--accent-amber);
+    letter-spacing: 3px;
+    white-space: nowrap;
+  }
+
+  .verdict-text {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    line-height: 1.4;
+  }
+
+  .verdict-text strong { color: var(--accent-amber); }
+
+  .verdict-rating {
+    margin-left: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    white-space: nowrap;
+  }
+
+  .verdict-rating-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+  }
+
+  .verdict-rating-val {
+    font-family: 'Exo 2', sans-serif;
+    font-size: 24px;
+    font-weight: 900;
+    color: var(--accent-amber);
+  }
+
+  /* ANIMATE IN */
+  .fade-in { animation: fadeUp 0.5s ease both; }
+  .fade-in-2 { animation: fadeUp 0.5s ease 0.1s both; }
+  .fade-in-3 { animation: fadeUp 0.5s ease 0.2s both; }
+  .fade-in-4 { animation: fadeUp 0.5s ease 0.3s both; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+
+  /* EVALUATOR COMMENTS */
+  .evaluator-comment {
+    display: none;
+    background: rgba(255, 53, 69, 0.04);
+    border-left: 3px solid var(--accent-red);
+    border-bottom: 1px solid rgba(255,53,69,0.15);
+    padding: 18px 20px 18px 24px;
+    gap: 16px;
+    animation: slideDown 0.25s ease;
+    flex-direction: row;
+    align-items: flex-start;
+  }
+  .evaluator-comment.open { display: flex; }
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .eval-avatar {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    background: rgba(255,53,69,0.15);
+    border: 1px solid rgba(255,53,69,0.35);
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--accent-red);
+    letter-spacing: 1px;
+    font-weight: 700;
+  }
+  .eval-body { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+  .eval-name {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--accent-red);
+    letter-spacing: 1px;
+    opacity: 0.8;
+  }
+  .eval-quote {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+    color: #d4dff0;
+    line-height: 1.6;
+    font-style: italic;
+  }
+  .vuln-row { cursor: pointer; }
+  .vuln-row:hover .vuln-title-text { color: var(--accent-cyan); }
+  .expand-hint {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    text-align: right;
+    padding: 6px 20px;
+    border-bottom: 1px solid var(--border-dim);
+    letter-spacing: 2px;
+  }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg-void); }
+  ::-webkit-scrollbar-thumb { background: var(--border-dim); border-radius: 2px; }
+
+</style>
+<meta property="og:title" content="BLACK HAT PROPOSAL STRESS TEST — FIRE SYSTEM C2 CYBERSECURITY" data-id="th-modified"><meta name="description" content="redteam-dashboard v2" data-id="th-modified"><meta property="og:description" content="redteam-dashboard v2" data-id="th-modified"><meta property="og:image" content="https://tiiny.host/assets/logo-purple-bg.png" data-id="th-modified"><meta property="og:url" content="https://plum-vivienne-36.tiiny.site/" data-id="th-modified"><meta property="og:type" content="website" data-id="th-modified"><script defer data-domain="plum-vivienne-36.tiiny.site" src="https://analytics.tiiny.site/js/plausible.js"></script></head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <div class="threat-tag">CLASSIFIED INTERNAL USE ONLY — PRE-DECISIONAL</div>
+    <div class="header-title"><span>BLACK HAT</span> PROPOSAL STRESS TEST</div>
+    <div class="header-sub">FIRE SYSTEM C2 // CYBERSECURITY POSTURE // ADVERSARIAL EVALUATION ENGINE v2.4</div>
+  </div>
+  <div class="header-meta">
+    <div class="live-indicator"><div class="live-dot"></div>RED TEAM ACTIVE</div>
+    <div class="timestamp" id="ts">INITIALIZING...</div>
+  </div>
+</div>
+
+<!-- MAIN GRID -->
+<div class="main-grid">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-section-label">EVALUATION PANELS</div>
+    <div class="nav-item critical active">
+      <span class="nav-label">Kill Shots</span>
+      <span class="nav-badge badge-red">3</span>
+    </div>
+    <div class="nav-item critical">
+      <span class="nav-label">Deficiency Flags</span>
+      <span class="nav-badge badge-red">4</span>
+    </div>
+    <div class="nav-item">
+      <span class="nav-label">Weakness Exposure</span>
+      <span class="nav-badge badge-amber">7</span>
+    </div>
+    <div class="nav-item">
+      <span class="nav-label">Compliance Gaps</span>
+      <span class="nav-badge badge-amber">5</span>
+    </div>
+    <div class="nav-item">
+      <span class="nav-label">Evidence Gaps</span>
+      <span class="nav-badge badge-cyan">6</span>
+    </div>
+    <div class="nav-item">
+      <span class="nav-label">Unenforceable SOW</span>
+      <span class="nav-badge badge-amber">3</span>
+    </div>
+    <div class="nav-item">
+      <span class="nav-label">Price Risk</span>
+      <span class="nav-badge badge-cyan">2</span>
+    </div>
+    <div class="nav-item">
+      <span class="nav-label">Past Performance</span>
+      <span class="nav-badge badge-green">Clean</span>
+    </div>
+
+    <div class="sidebar-section-label">EVALUATOR LENS</div>
+    <div class="nav-item">
+      <span class="nav-label">Technical SME</span>
+      <span class="nav-badge badge-red">9 flags</span>
+    </div>
+    <div class="nav-item">
+      <span class="nav-label">Contracting Officer</span>
+      <span class="nav-badge badge-amber">8 flags</span>
+    </div>
+    <div class="nav-item">
+      <span class="nav-label">SSEB Chair View</span>
+      <span class="nav-badge badge-cyan">Aligned</span>
+    </div>
+
+    <!-- SCORE RING -->
+    <div class="score-panel" style="margin-top: 8px;">
+      <div class="score-panel-label">// SCORING CEILING</div>
+      <div class="ring-container">
+        <svg class="ring-svg" viewBox="0 0 40 40">
+          <circle class="ring-bg" cx="20" cy="20" r="15"></circle>
+          <circle class="ring-progress" cx="20" cy="20" r="15"></circle>
+        </svg>
+        <div class="ring-text-group">
+          <div class="ring-value">58<span style="font-size:16px;opacity:0.6">%</span></div>
+          <div class="ring-label">CEILING</div>
+          <div class="ring-sublabel">Acceptable Risk</div>
+        </div>
+      </div>
+      <div class="mini-scores">
+        <div class="mini-score-row">
+          <div class="mini-score-label">Technical</div>
+          <div class="mini-bar-track"><div class="mini-bar-fill cf-amber" style="width:52%"></div></div>
+          <div class="mini-score-val" style="color:var(--accent-amber)">52</div>
+        </div>
+        <div class="mini-score-row">
+          <div class="mini-score-label">Management</div>
+          <div class="mini-bar-track"><div class="mini-bar-fill cf-cyan" style="width:71%"></div></div>
+          <div class="mini-score-val" style="color:var(--accent-cyan)">71</div>
+        </div>
+        <div class="mini-score-row">
+          <div class="mini-score-label">Risk</div>
+          <div class="mini-bar-track"><div class="mini-bar-fill cf-red" style="width:38%"></div></div>
+          <div class="mini-score-val" style="color:var(--accent-red)">38</div>
+        </div>
+        <div class="mini-score-row">
+          <div class="mini-score-label">Affordability</div>
+          <div class="mini-bar-track"><div class="mini-bar-fill cf-green" style="width:66%"></div></div>
+          <div class="mini-score-val" style="color:var(--accent-green)">66</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="content">
+
+    <!-- KILL SHOTS -->
+    <div class="kill-shots-banner fade-in">
+      <div class="ks-header">
+        <div class="ks-icon">⚡</div>
+        <div>
+          <div class="ks-title">// TOP 3 KILL SHOTS — AWARD ELIMINATION RISK</div>
+          <div class="ks-subtitle">Vulnerabilities most likely to result in deficiency finding or loss to competitor</div>
+        </div>
+      </div>
+      <div class="kill-shots-grid">
+        <div class="kill-shot-card">
+          <div class="ks-num">// KS-001</div>
+          <div class="ks-title-text">Zero Trust / OT Latency Contradiction</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:var(--text-dim);margin-bottom:8px;line-height:1.4">ZTA architecture as written violates NFPA 72 latency requirements. Authentication overhead undefined for BACnet/Modbus environments. Evaluator will find this unworkable in life-safety context.</div>
+          <div class="ks-impact">IMPACT: SIGNIFICANT WEAKNESS → DEFICIENCY</div>
+        </div>
+        <div class="kill-shot-card">
+          <div class="ks-num">// KS-002</div>
+          <div class="ks-title-text">IEC 62443 Absent From Compliance Map</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:var(--text-dim);margin-bottom:8px;line-height:1.4">OT-specific security standard not cited. NIST 800-82 name-dropped without zone/conduit architecture mapping. Technical SME evaluator will cite this as a fundamental OT security knowledge gap.</div>
+          <div class="ks-impact">IMPACT: SIGNIFICANT WEAKNESS — SCORING BLOCKED</div>
+        </div>
+        <div class="kill-shot-card">
+          <div class="ks-num">// KS-003</div>
+          <div class="ks-title-text">Past Performance Scope Mismatch</div>
+          <div style="font-family:'Rajdhani',sans-serif;font-size:12px;color:var(--text-dim);margin-bottom:8px;line-height:1.4">Cited contracts are IT cybersecurity engagements relabeled as OT-relevant. No demonstrated fire system C2 or life-safety OT environment. CPARS POC calls will expose this discrepancy.</div>
+          <div class="ks-impact">IMPACT: PP VOLUME SCORING COLLAPSE</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VULNERABILITY TABLE -->
+    <div class="panel fade-in-2">
+      <div class="panel-header">
+        <div class="panel-title">
+          <div class="panel-title-dot dot-red"></div>
+          VULNERABILITY REGISTER — EVALUATOR COMMENTARY
+        </div>
+        <div class="panel-count">17 FINDINGS // SORTED BY IMPACT</div>
+      </div>
+      <div class="expand-hint">▼ CLICK ANY ROW TO EXPAND EVALUATOR COMMENTARY</div>
+      <div class="vuln-table">
+        <div class="vuln-header-row">
+          <div class="vuln-th">ID</div>
+          <div class="vuln-th">TYPE</div>
+          <div class="vuln-th">FINDING</div>
+          <div class="vuln-th">IMPACT</div>
+          <div class="vuln-th">LENS</div>
+        </div>
+
+        <div class="vuln-row" style="animation-delay:0.05s" onclick="toggleComment('c001')">
+          <div class="vuln-id">RT-001</div>
+          <div style="display:flex;align-items:center"><span class="vuln-type-tag tag-deficiency">DEFICIENCY</span></div>
+          <div class="vuln-desc">
+            <div class="vuln-title-text">COOP Plan Fails Life-Safety Bypass Test</div>
+            <div>No fail-safe bypass defined for cybersecurity layer failure during active suppression event</div>
+          </div>
+          <div style="display:flex;align-items:center"><span class="impact-pill impact-critical">CRITICAL</span></div>
+          <div class="vuln-lens">Technical SME</div>
+        </div>
+        <div class="evaluator-comment" id="c001">
+          <div class="eval-avatar">EVAL</div>
+          <div class="eval-body">
+            <div class="eval-name">Dr. Marcus Webb — OT Systems Evaluator, GS-15</div>
+            <div class="eval-quote">"This is a fundamental systems engineering failure, not a documentation oversight. If your cybersecurity layer can physically block suppression activation during an active fire event — and this proposal provides zero architectural evidence that it cannot — you have not designed a security solution. You have designed a liability. I have been evaluating OT proposals for eleven years. This is the kind of omission that gets people fired AND gets buildings burned down. I am marking this as a Deficiency, not a Weakness. The offeror has not demonstrated basic understanding of the operating environment."</div>
+          </div>
+        </div>
+
+        <div class="vuln-row" style="animation-delay:0.1s" onclick="toggleComment('c002')">
+          <div class="vuln-id">RT-002</div>
+          <div style="display:flex;align-items:center"><span class="vuln-type-tag tag-deficiency">DEFICIENCY</span></div>
+          <div class="vuln-desc">
+            <div class="vuln-title-text">EDR on PLC — Unvalidated Capability Claim</div>
+            <div>Endpoint Detection on embedded fire system controllers asserted without processing overhead analysis or hardware validation</div>
+          </div>
+          <div style="display:flex;align-items:center"><span class="impact-pill impact-critical">CRITICAL</span></div>
+          <div class="vuln-lens">Technical SME</div>
+        </div>
+        <div class="evaluator-comment" id="c002">
+          <div class="eval-avatar">EVAL</div>
+          <div class="eval-body">
+            <div class="eval-name">Col. (Ret.) Sandra Okafor — Cybersecurity Architecture SME</div>
+            <div class="eval-quote">"EDR on a PLC. I need a moment. These controllers run on 256MB RAM executing real-time deterministic firmware. You cannot install a CrowdStrike agent on a Siemens S7-300 and call it endpoint detection. Either this team has never touched an actual OT environment, or they copy-pasted an IT security architecture and changed the headers. Neither is acceptable. I have no idea what they think they are deploying here, but whatever it is, it is not what they wrote. Marked Deficiency. Do not advance this section."</div>
+          </div>
+        </div>
+
+        <div class="vuln-row" style="animation-delay:0.15s" onclick="toggleComment('c003')">
+          <div class="vuln-id">RT-003</div>
+          <div style="display:flex;align-items:center"><span class="vuln-type-tag tag-compliance">COMPLIANCE</span></div>
+          <div class="vuln-desc">
+            <div class="vuln-title-text">RMF / DODI 8510.01 Not Addressed for OT System</div>
+            <div>Authorization boundary for fire system C2 not defined. ATO pathway absent. Evaluator will treat as compliance gap.</div>
+          </div>
+          <div style="display:flex;align-items:center"><span class="impact-pill impact-critical">CRITICAL</span></div>
+          <div class="vuln-lens">Both</div>
+        </div>
+        <div class="evaluator-comment" id="c003">
+          <div class="eval-avatar">EVAL</div>
+          <div class="eval-body">
+            <div class="eval-name">Patricia Nguyen — Contracting Officer, ISSM Liaison</div>
+            <div class="eval-quote">"The RMF authorization boundary is not defined anywhere in this document. Anywhere. I read it twice. Who is the AO? What is the boundary? Is this going to require an ATO, an IATT, or does the offeror think it is somehow exempt? They never say. DoD 8510.01 has been in effect since 2014. This is not new. If your cybersecurity team does not know they need an authorization boundary statement for a networked fire system C2 platform, I do not trust them to secure one. Automatic compliance gap finding. I am escalating to the PCO."</div>
+          </div>
+        </div>
+
+        <div class="vuln-row" style="animation-delay:0.2s" onclick="toggleComment('c004')">
+          <div class="vuln-id">RT-004</div>
+          <div style="display:flex;align-items:center"><span class="vuln-type-tag tag-weakness">WEAKNESS</span></div>
+          <div class="vuln-desc">
+            <div class="vuln-title-text">Passive Monitoring: Product Drop Without Architecture</div>
+            <div>OT network monitoring tools named (Dragos, Armis) without sensor placement topology or protocol coverage for BACnet/Modbus</div>
+          </div>
+          <div style="display:flex;align-items:center"><span class="impact-pill impact-high">HIGH</span></div>
+          <div class="vuln-lens">Technical SME</div>
+        </div>
+        <div class="evaluator-comment" id="c004">
+          <div class="eval-avatar">EVAL</div>
+          <div class="eval-body">
+            <div class="eval-name">Dr. Marcus Webb — OT Systems Evaluator, GS-15</div>
+            <div class="eval-quote">"Congratulations. You listed two product names. Dragos. Armis. That is it. Where are the sensors going? How many span ports? What switch TAPs? What protocol decoders handle BACnet/IP versus BACnet MS/TP versus Modbus RTU? Do you know those are different things? Because this proposal treats them identically. You have done a vendor logo drop and called it an architecture. I have seen more technical depth on a product brochure. Weakness. Borderline Significant Weakness."</div>
+          </div>
+        </div>
+
+        <div class="vuln-row" style="animation-delay:0.25s" onclick="toggleComment('c005')">
+          <div class="vuln-id">RT-005</div>
+          <div style="display:flex;align-items:center"><span class="vuln-type-tag tag-weakness">WEAKNESS</span></div>
+          <div class="vuln-desc">
+            <div class="vuln-title-text">SOW: "Assist With" / "Coordinate With" Language</div>
+            <div>Three deliverables use unenforceable effort verbs. No measurable acceptance criteria. CPARS exploitation risk.</div>
+          </div>
+          <div style="display:flex;align-items:center"><span class="impact-pill impact-high">HIGH</span></div>
+          <div class="vuln-lens">Contracting Officer</div>
+        </div>
+        <div class="evaluator-comment" id="c005">
+          <div class="eval-avatar">EVAL</div>
+          <div class="eval-body">
+            <div class="eval-name">Patricia Nguyen — Contracting Officer, ISSM Liaison</div>
+            <div class="eval-quote">"Assist with implementation. Coordinate with the Government on configuration. Support remediation activities. Do you know what those phrases mean from a contract enforcement standpoint? Nothing. Absolutely nothing. I cannot write a CPARS narrative against assist with. I cannot issue a cure notice against coordinate with. A contractor could show up, send two emails, and technically satisfy these deliverables. This is not a SOW — it is a liability transfer document in a proposal costume. Fix every effort verb or the entire PWS response gets flagged Unacceptable."</div>
+          </div>
+        </div>
+
+        <div class="vuln-row" style="animation-delay:0.3s" onclick="toggleComment('c006')">
+          <div class="vuln-id">RT-006</div>
+          <div style="display:flex;align-items:center"><span class="vuln-type-tag tag-evidence">EVIDENCE GAP</span></div>
+          <div class="vuln-desc">
+            <div class="vuln-title-text">Security Posture Improvement Metric: No Baseline</div>
+            <div>"40% reduction in attack surface" — baseline undefined, methodology absent, measurement framework missing</div>
+          </div>
+          <div style="display:flex;align-items:center"><span class="impact-pill impact-high">HIGH</span></div>
+          <div class="vuln-lens">Technical SME</div>
+        </div>
+        <div class="evaluator-comment" id="c006">
+          <div class="eval-avatar">EVAL</div>
+          <div class="eval-body">
+            <div class="eval-name">Col. (Ret.) Sandra Okafor — Cybersecurity Architecture SME</div>
+            <div class="eval-quote">"Forty percent reduction. Forty. Percent. From what? Measured how? By whom? Over what time horizon? Against which MITRE ATT&CK for ICS techniques? You invented a number and put it in a federal proposal. This is not a discriminator — it is a fabrication. I want a baseline assessment methodology, an ICS threat mapping, and a measurable reduction framework, or this number gets deleted entirely. Made-up metrics do not impress evaluators. They infuriate us. Because we have to explain to the SSA why we credited a claim with zero evidentiary basis. We do not. We mark it unsupported and move on."</div>
+          </div>
+        </div>
+
+        <div class="vuln-row" style="animation-delay:0.35s" onclick="toggleComment('c007')">
+          <div class="vuln-id">RT-007</div>
+          <div style="display:flex;align-items:center"><span class="vuln-type-tag tag-compliance">COMPLIANCE</span></div>
+          <div class="vuln-desc">
+            <div class="vuln-title-text">CMMC Level Claimed — CUI Scope Not Established</div>
+            <div>Fire system C2 data classification not confirmed as CUI. CMMC claim may be inapplicable or misleading.</div>
+          </div>
+          <div style="display:flex;align-items:center"><span class="impact-pill impact-medium">MEDIUM</span></div>
+          <div class="vuln-lens">Contracting Officer</div>
+        </div>
+        <div class="evaluator-comment" id="c007">
+          <div class="eval-avatar">EVAL</div>
+          <div class="eval-body">
+            <div class="eval-name">Patricia Nguyen — Contracting Officer, ISSM Liaison</div>
+            <div class="eval-quote">"CMMC Level 2 compliance claimed. Does anyone on this team know what CUI actually is? Fire system activation commands and suppression schedules are not automatically CUI. That determination requires a data flow analysis and a CUI registry review. You skipped that entire step and stamped CMMC Level 2 on it like a participation trophy. If the data is NOT CUI, you just proposed a compliance framework that does not apply and will waste Government money on unnecessary controls. If it IS CUI, you have not proven it. Either way, this is wrong."</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- BOTTOM GRID -->
+    <div class="bottom-grid fade-in-3">
+
+      <!-- COMPLIANCE MATRIX -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><div class="panel-title-dot dot-amber"></div>COMPLIANCE MATRIX</div>
+          <div class="panel-count">OT CYBERSECURITY STANDARDS</div>
+        </div>
+        <div class="compliance-grid">
+          <div class="compliance-row">
+            <div class="compliance-icon ci-fail">✗</div>
+            <div class="compliance-name">IEC 62443</div>
+            <div class="compliance-status cs-fail">NOT CITED</div>
+          </div>
+          <div class="compliance-row">
+            <div class="compliance-icon ci-warn">△</div>
+            <div class="compliance-name">NIST SP 800-82</div>
+            <div class="compliance-status cs-warn">NAME-DROPPED</div>
+          </div>
+          <div class="compliance-row">
+            <div class="compliance-icon ci-fail">✗</div>
+            <div class="compliance-name">DODI 8510.01 / RMF</div>
+            <div class="compliance-status cs-fail">ABSENT</div>
+          </div>
+          <div class="compliance-row">
+            <div class="compliance-icon ci-warn">△</div>
+            <div class="compliance-name">NFPA 72 / 2001</div>
+            <div class="compliance-status cs-warn">PARTIAL</div>
+          </div>
+          <div class="compliance-row">
+            <div class="compliance-icon ci-warn">△</div>
+            <div class="compliance-name">MITRE ATT&CK ICS</div>
+            <div class="compliance-status cs-warn">UNLINKED</div>
+          </div>
+          <div class="compliance-row">
+            <div class="compliance-icon ci-pass">✓</div>
+            <div class="compliance-name">NIST CSF</div>
+            <div class="compliance-status cs-pass">ADDRESSED</div>
+          </div>
+          <div class="compliance-row">
+            <div class="compliance-icon ci-fail">✗</div>
+            <div class="compliance-name">EO 13636 / CISA</div>
+            <div class="compliance-status cs-fail">NOT CITED</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SCORING CEILING BY FACTOR -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title"><div class="panel-title-dot dot-cyan"></div>SCORING CEILING BY FACTOR</div>
+          <div class="panel-count">MAX ACHIEVABLE // CURRENT STATE</div>
+        </div>
+        <div class="ceiling-chart">
+          <div class="ceiling-item">
+            <div class="ceiling-header">
+              <div class="ceiling-factor">Technical Approach <span class="adjectival-tag" style="background:rgba(255,170,0,0.1);color:var(--accent-amber);border:1px solid rgba(255,170,0,0.2)">ACCEPTABLE</span></div>
+              <div class="ceiling-val-group"><span class="ceiling-current" style="color:var(--accent-amber)">52%</span><span class="ceiling-max">/ 100</span></div>
+            </div>
+            <div class="ceiling-track"><div class="ceiling-fill cf-amber" style="width:52%"></div></div>
+          </div>
+          <div class="ceiling-item">
+            <div class="ceiling-header">
+              <div class="ceiling-factor">Management / Staffing <span class="adjectival-tag" style="background:rgba(0,229,255,0.06);color:var(--accent-cyan);border:1px solid rgba(0,229,255,0.15)">GOOD</span></div>
+              <div class="ceiling-val-group"><span class="ceiling-current" style="color:var(--accent-cyan)">71%</span><span class="ceiling-max">/ 100</span></div>
+            </div>
+            <div class="ceiling-track"><div class="ceiling-fill cf-cyan" style="width:71%"></div></div>
+          </div>
+          <div class="ceiling-item">
+            <div class="ceiling-header">
+              <div class="ceiling-factor">Risk Mitigation <span class="adjectival-tag" style="background:rgba(255,32,48,0.1);color:var(--accent-red);border:1px solid rgba(255,32,48,0.2)">MARGINAL</span></div>
+              <div class="ceiling-val-group"><span class="ceiling-current" style="color:var(--accent-red)">38%</span><span class="ceiling-max">/ 100</span></div>
+            </div>
+            <div class="ceiling-track"><div class="ceiling-fill cf-red" style="width:38%"></div></div>
+          </div>
+          <div class="ceiling-item">
+            <div class="ceiling-header">
+              <div class="ceiling-factor">Past Performance <span class="adjectival-tag" style="background:rgba(255,170,0,0.1);color:var(--accent-amber);border:1px solid rgba(255,170,0,0.2)">ACCEPTABLE</span></div>
+              <div class="ceiling-val-group"><span class="ceiling-current" style="color:var(--accent-amber)">55%</span><span class="ceiling-max">/ 100</span></div>
+            </div>
+            <div class="ceiling-track"><div class="ceiling-fill cf-amber" style="width:55%"></div></div>
+          </div>
+          <div class="ceiling-item">
+            <div class="ceiling-header">
+              <div class="ceiling-factor">Affordability / Price <span class="adjectival-tag" style="background:rgba(0,255,136,0.06);color:var(--accent-green);border:1px solid rgba(0,255,136,0.18)">GOOD</span></div>
+              <div class="ceiling-val-group"><span class="ceiling-current" style="color:var(--accent-green)">66%</span><span class="ceiling-max">/ 100</span></div>
+            </div>
+            <div class="ceiling-track"><div class="ceiling-fill cf-green" style="width:66%"></div></div>
+          </div>
+          <div class="ceiling-item">
+            <div class="ceiling-header">
+              <div class="ceiling-factor">OT Compliance Proof <span class="adjectival-tag" style="background:rgba(255,32,48,0.1);color:var(--accent-red);border:1px solid rgba(255,32,48,0.2)">MARGINAL</span></div>
+              <div class="ceiling-val-group"><span class="ceiling-current" style="color:var(--accent-red)">31%</span><span class="ceiling-max">/ 100</span></div>
+            </div>
+            <div class="ceiling-track"><div class="ceiling-fill cf-red" style="width:31%"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FINAL VERDICT -->
+    <div class="verdict-bar fade-in-4">
+      <div class="verdict-label">// RED TEAM VERDICT</div>
+      <div class="verdict-text">
+        Current proposal <strong>cannot achieve Outstanding</strong>. Primary blockers: unvalidated OT architecture claims, absent IEC 62443 compliance mapping, and life-safety bypass gap. With KS-001 and KS-002 resolved and IEC 62443 zone/conduit architecture inserted, scoring ceiling elevates to <strong>Good (75–82%)</strong>. Outstanding requires demonstrated fire system C2 past performance and validated latency-compliant Zero Trust implementation.
+      </div>
+      <div class="verdict-rating">
+        <div class="verdict-rating-label">CURRENT CEILING</div>
+        <div class="verdict-rating-val">ACCEPTABLE</div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main-grid -->
+
+<!-- FOOTER -->
+<div class="footer-bar">
+  <div class="footer-text">// PRE-DECISIONAL — INTERNAL RED TEAM ONLY — NOT FOR DISTRIBUTION</div>
+  <div class="footer-badges">
+    <span class="footer-badge" style="background:rgba(255,32,48,0.1);color:var(--accent-red);border:1px solid rgba(255,32,48,0.2)">BLACK HAT MODE</span>
+    <span class="footer-badge" style="background:rgba(0,229,255,0.06);color:var(--accent-cyan);border:1px solid rgba(0,229,255,0.15)">DUAL LENS ACTIVE</span>
+    <span class="footer-badge" style="background:rgba(0,255,136,0.06);color:var(--accent-green);border:1px solid rgba(0,255,136,0.15)">LOGICORE INTERNAL</span>
+  </div>
+</div>
+
+<script>
+  // Live timestamp
+  function updateTime() {
+    const now = new Date();
+    document.getElementById('ts').textContent =
+      now.toLocaleDateString('en-US', {month:'2-digit',day:'2-digit',year:'numeric'}).replace(/\//g,'.') +
+      ' // ' +
+      now.toLocaleTimeString('en-US', {hour12:false}) +
+      ' EST';
+  }
+  updateTime();
+  setInterval(updateTime, 1000);
+
+  // Toggle evaluator comments
+  function toggleComment(id) {
+    const el = document.getElementById(id);
+    el.classList.toggle('open');
+  }
+
+  // Nav interactions
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', function() {
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      this.classList.add('active');
+    });
+  });
+
+  // Animate ring on load
+  setTimeout(() => {
+    document.querySelector('.ring-progress').style.strokeDashoffset = '79';
+  }, 300);
+</script>
+</body>
+</html>
