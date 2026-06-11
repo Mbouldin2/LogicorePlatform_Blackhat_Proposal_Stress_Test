@@ -1,0 +1,22 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { generateContent } from "@/lib/ai";
+
+export const runtime = "nodejs";
+
+const schema = z.object({
+  template: z.string(),
+  topic: z.string().min(1),
+  tone: z.string().optional(),
+  audience: z.string().optional(),
+  keywords: z.string().optional(),
+  brandVoice: z.string().optional(),
+  length: z.enum(["short", "medium", "long"]).optional(),
+});
+
+export async function POST(req: Request) {
+  const parsed = schema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
+  const text = await generateContent(parsed.data);
+  return NextResponse.json({ text });
+}
