@@ -46,6 +46,7 @@ model Organization {
   brandVoices  BrandVoice[]
   brandKits    BrandKit[]
   usage        UsageRecord[]
+  generations  Generation[]
 }
 
 model User {
@@ -57,6 +58,7 @@ model User {
 
   memberships Membership[]
   documents   Document[]
+  generations Generation[]
 }
 
 model Membership {
@@ -149,6 +151,23 @@ model SavedPrompt {
   body      String
   orgId     String
   createdAt DateTime @default(now())
+}
+
+model Generation {
+  id        String   @id @default(cuid())
+  org       Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orgId     String
+  author    User     @relation(fields: [authorId], references: [id])
+  authorId  String
+  feature   String   // studio | humanizer | grammar | research | proposal | visuals | chat
+  prompt    String   @default("")
+  output    String   @default("")
+  provider  String   @default("demo")
+  model     String?
+  words     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([orgId, createdAt])
 }
 
 model UsageRecord {

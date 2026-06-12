@@ -1,7 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Sparkles, Loader2, Copy, Download, Eye, Pencil, Wand2 } from "lucide-react";
+import { Sparkles, Loader2, Copy, Download, Eye, Pencil, Wand2, Save } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,8 @@ import { Badge } from "@/components/ui/badge";
 import { Markdown } from "@/components/shared/markdown";
 import { WRITING_TEMPLATES, TONES } from "@/lib/constants";
 import { MOCK_VOICES } from "@/lib/mock-data";
+import { saveDocumentAction } from "@/lib/actions";
+import type { BrandVoice } from "@/types";
 import { countWords, readingTime } from "@/lib/utils";
 
 export default function StudioPage() {
@@ -25,9 +27,33 @@ export default function StudioPage() {
   const [voice, setVoice] = useState("");
   const [output, setOutput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [view, setView] = useState<"preview" | "edit">("preview");
+  const [voices, setVoices] = useState<BrandVoice[]>(MOCK_VOICES);
+
+  // Load brand-voice profiles from the workspace (DB-backed; demo fallback).
+  useEffect(() => {
+    fetch("/api/brand-voices")
+      .then((r) => r.json())
+      .then((d) => Array.isArray(d.voices) && d.voices.length > 0 && setVoices(d.voices))
+      .catch(() => {});
+  }, []);
 
   const words = countWords(output);
+
+  async function save() {
+    if (!output.trim()) return;
+    setSaving(true);
+    const title = (topic.trim() || output.replace(/^#+\s*/, "").split("\n")[0] || "Untitled draft").slice(0, 120);
+    const type = WRITING_TEMPLATES.find((t) => t.id === template)?.name ?? "Document";
+    const result = await saveDocumentAction({ title, type, content: output, status: "draft" });
+    setSaving(false);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success("Saved to your workspace");
+  }
 
   async function generate() {
     if (!topic.trim()) {
@@ -129,7 +155,7 @@ export default function StudioPage() {
                   value={voice}
                   onValueChange={setVoice}
                   placeholder="None"
-                  options={[{ value: "", label: "No voice profile" }, ...MOCK_VOICES.map((v) => ({ value: v.description, label: v.name }))]}
+                  options={[{ value: "", label: "No voice profile" }, ...voices.map((v) => ({ value: v.description, label: v.name }))]}
                 />
               </div>
               <Button onClick={generate} disabled={loading} className="w-full">
@@ -164,6 +190,9 @@ export default function StudioPage() {
               </Button>
               <Button variant="ghost" size="icon" onClick={download} disabled={!output} aria-label="Download">
                 <Download className="size-4" />
+              </Button>
+              <Button variant="secondary" size="sm" onClick={save} disabled={!output || saving}>
+                {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Save
               </Button>
             </div>
           </CardHeader>

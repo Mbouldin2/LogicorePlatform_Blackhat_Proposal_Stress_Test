@@ -1,3 +1,7 @@
+// Always render at request time — reflects live per-tenant data, never
+// queries the database during the static build.
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
 import {
   PenLine,
@@ -15,7 +19,10 @@ import { StatCard } from "@/components/dashboard/widgets";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MOCK_DOCS, MOCK_USAGE, MOCK_PROJECTS } from "@/lib/mock-data";
+import { getTenant } from "@/lib/data/tenant";
+import { listProjects } from "@/lib/data/projects";
+import { listDocuments } from "@/lib/data/documents";
+import { getUsageSnapshot } from "@/lib/data/usage";
 import { formatNumber, timeAgo } from "@/lib/utils";
 
 const QUICK_ACTIONS = [
@@ -25,12 +32,18 @@ const QUICK_ACTIONS = [
   { href: "/dashboard/proposals", label: "Draft a proposal", icon: FileSignature, tone: "bg-purple-600" },
 ];
 
-export default function DashboardOverview() {
-  const u = MOCK_USAGE;
+export default async function DashboardOverview() {
+  const tenant = await getTenant();
+  const [u, projects, docs] = await Promise.all([
+    getUsageSnapshot(tenant.orgId, tenant.plan),
+    listProjects(tenant.orgId),
+    listDocuments(tenant.orgId),
+  ]);
+  const firstName = tenant.name.split(" ")[0] || "there";
   return (
     <>
       <PageHeader
-        title="Good to see you, Operator"
+        title={`Good to see you, ${firstName}`}
         description="Here's what's happening across your ZinkPen workspace."
         actions={
           <Link href="/dashboard/studio">
@@ -82,7 +95,7 @@ export default function DashboardOverview() {
               </Link>
             </CardHeader>
             <CardContent className="space-y-1">
-              {MOCK_DOCS.slice(0, 5).map((d) => (
+              {docs.slice(0, 5).map((d) => (
                 <div
                   key={d.id}
                   className="flex items-center gap-3 rounded-[var(--radius-sm)] px-3 py-2.5 transition-colors hover:bg-[var(--color-muted)]"
@@ -118,7 +131,7 @@ export default function DashboardOverview() {
               </Link>
             </CardHeader>
             <CardContent className="space-y-2">
-              {MOCK_PROJECTS.map((p) => (
+              {projects.map((p) => (
                 <div key={p.id} className="flex items-center gap-3 rounded-[var(--radius-sm)] px-2 py-2 hover:bg-[var(--color-muted)]">
                   <span className="size-3 rounded-full" style={{ background: p.color }} />
                   <div className="min-w-0 flex-1">

@@ -1,13 +1,20 @@
 import { DashboardShell } from "@/components/dashboard/shell";
-import { getCurrentUser } from "@/lib/supabase/server";
-import { DEMO_USER } from "@/lib/supabase/config";
+import { getTenant } from "@/lib/data/tenant";
+import { getUsageSnapshot } from "@/lib/data/usage";
+import { PLANS } from "@/lib/constants";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  // In production, redirect unauthenticated users to /login. In demo mode the
-  // demo operator is returned so the workspace is fully explorable.
-  const user = (await getCurrentUser()) ?? DEMO_USER;
+  // Resolves (and lazily provisions) the tenant. In demo mode this is the demo
+  // operator with no database access.
+  const tenant = await getTenant();
+  const usage = await getUsageSnapshot(tenant.orgId, tenant.plan);
+  const planName = PLANS.find((p) => p.id === tenant.plan)?.name ?? tenant.plan;
+
   return (
-    <DashboardShell user={{ name: user.name, email: user.email, plan: user.plan }}>
+    <DashboardShell
+      user={{ name: tenant.name, email: tenant.email, plan: tenant.plan }}
+      usage={{ wordsUsed: usage.wordsUsed, wordsLimit: usage.wordsLimit, plan: planName }}
+    >
       {children}
     </DashboardShell>
   );

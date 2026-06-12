@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStripe, priceIdForPlan } from "@/lib/stripe/server";
+import { getTenant } from "@/lib/data/tenant";
 
 export const runtime = "nodejs";
 
@@ -25,12 +26,18 @@ export async function POST(req: Request) {
     });
   }
 
+  const tenant = await getTenant();
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: `${appUrl}/dashboard/billing?status=success`,
     cancel_url: `${appUrl}/pricing?status=cancelled`,
     allow_promotion_codes: true,
+    client_reference_id: tenant.orgId,
+    customer_email: tenant.email,
+    // Carried back to us on checkout.session.completed for plan sync.
+    metadata: { orgId: tenant.orgId, plan: parsed.data.plan },
+    subscription_data: { metadata: { orgId: tenant.orgId, plan: parsed.data.plan } },
   });
 
   return NextResponse.json({ url: session.url });

@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe/server";
+import { setOrgPlan } from "@/lib/data/subscription";
+import type { PlanId } from "@/lib/constants";
+
+const PLAN_IDS: PlanId[] = ["starter", "professional", "executive", "government"];
+function asPlan(v: unknown): PlanId | null {
+  return typeof v === "string" && (PLAN_IDS as string[]).includes(v) ? (v as PlanId) : null;
+}
 
 export const runtime = "nodejs";
 
@@ -28,13 +35,38 @@ export async function POST(req: Request) {
   }
 
   switch (event.type) {
-    case "checkout.session.completed":
-    case "customer.subscription.created":
-    case "customer.subscription.updated":
-    case "customer.subscription.deleted":
-      // TODO: sync subscription state to Postgres (Organization.plan, stripe ids).
-      console.log(`[stripe] handled ${event.type}`);
+    case "checkout.session.completed": {
+      const s = event.data.object as Stripe.Checkout.Session;
+      const orgId = s.metadata?.orgId ?? s.client_reference_id ?? undefined;
+      const plan = asPlan(s.metadata?.plan);
+      if (orgId && plan) {
+        await setOrgPlan(orgId, plan, {
+          customerId: typeof s.customer === "string" ? s.customer : undefined,
+          subscriptionId: typeof s.subscription === "string" ? s.subscription : undefined,
+        });
+      }
       break;
+    }
+    case "customer.subscription.updated":
+    case "customer.subscription.created": {
+      const sub = event.data.object as Stripe.Subscription;
+      const orgId = sub.metadata?.orgId;
+      const plan = asPlan(sub.metadata?.plan);
+      if (orgId && plan) {
+        await setOrgPlan(orgId, plan, {
+          customerId: typeof sub.customer === "string" ? sub.customer : undefined,
+          subscriptionId: sub.id,
+        });
+      }
+      break;
+    }
+    case "customer.subscription.deleted": {
+      const sub = event.data.object as Stripe.Subscription;
+      const orgId = sub.metadata?.orgId;
+      // Downgrade to Starter on cancellation.
+      if (orgId) await setOrgPlan(orgId, "starter", { subscriptionId: sub.id });
+      break;
+    }
     default:
       break;
   }

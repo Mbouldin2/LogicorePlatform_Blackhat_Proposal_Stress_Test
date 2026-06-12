@@ -8,7 +8,15 @@ import { Badge } from "@/components/ui/badge";
 import { NAV_ITEMS, NAV_GROUPS } from "./nav-config";
 import { UsageMini } from "./usage-mini";
 
-export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function Sidebar({
+  open,
+  onClose,
+  usage,
+}: {
+  open: boolean;
+  onClose: () => void;
+  usage: { wordsUsed: number; wordsLimit: number; plan: string };
+}) {
   const pathname = usePathname();
 
   return (
@@ -67,7 +75,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
         </nav>
 
         <div className="border-t border-[var(--color-border)] p-3">
-          <UsageMini />
+          <UsageMini wordsUsed={usage.wordsUsed} wordsLimit={usage.wordsLimit} plan={usage.plan} />
         </div>
       </aside>
     </>

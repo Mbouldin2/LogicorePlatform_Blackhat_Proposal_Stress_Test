@@ -7,9 +7,10 @@
 | **Repository** | `Mbouldin2/LogicorePlatform_Blackhat_Proposal_Stress_Test` |
 | **App directory** | `zinkpen/` |
 | **Branch** | `claude/zinkpen-saas-build-mdrzvk` (→ PR #1) |
-| **Build status** | ✅ `npm run build` passes · 27 routes compiled · APIs smoke-tested |
-| **Runtime mode** | **Demo mode** — fully functional with zero secrets; upgrades to live automatically when keys are present |
-| **Last updated** | 2026-06-12 |
+| **Build status** | ✅ `npm run build` + `npm run typecheck` pass · 28 routes compiled · APIs smoke-tested |
+| **Runtime mode** | **Demo mode** — fully functional with zero secrets; upgrades to live (Postgres/auth/billing) automatically when env is present |
+| **Persistence** | ✅ Prisma data layer wired with demo fallback (documents, projects, brand voices, generations, usage, subscriptions) |
+| **Last updated** | 2026-06-12 (persistence milestone) |
 
 ---
 
@@ -63,25 +64,41 @@ response. **Do not break this** — it is what makes the whole product explorabl
 - [x] **Settings** — profile, AI model routing preference, notifications (switches), security actions
 
 ### Backend / infra
-- [x] 7 AI API routes + 2 Stripe routes (all zod-validated)
+- [x] 7 AI API routes + 1 brand-voices route + 2 Stripe routes (all zod-validated)
 - [x] Multi-provider AI router with demo fallback (`src/lib/ai/`)
 - [x] Stripe checkout + webhook scaffolding
-- [x] Prisma Postgres schema (11 models)
+- [x] Prisma Postgres schema (12 models)
 - [x] Supabase server/client/middleware helpers
 - [x] Canvas-based visual export engine (`src/lib/visuals/render.ts`)
 - [x] Hand-rolled UI primitive library (no Radix dependency)
 - [x] README + `.env.example`
+
+### Data & Persistence ✅ (this milestone)
+- [x] **Prisma runtime** — singleton client (`src/lib/db/prisma.ts`) that returns `null` when `DATABASE_URL` is absent; `@prisma/client` + `postinstall: prisma generate`
+- [x] **Demo-fallback data layer** (`src/lib/data/`) — every read/write checks the DB and falls back to in-memory demo data, so demo mode is never broken
+- [x] **Tenant resolver** (`src/lib/data/tenant.ts`) — lazily provisions User + Organization + owner Membership on first authenticated access
+- [x] **Documents & Projects** — `listProjects`/`createProject`, `listDocuments`/`createDocument` (auto-creates a home project, writes an initial `DocumentVersion`)
+- [x] **Brand voices** — `listBrandVoices`/`createBrandVoice`; surfaced via `/api/brand-voices` and the brand-voice page
+- [x] **Generations** — every AI route records a `Generation` (feature/prompt/output/provider) best-effort, non-blocking
+- [x] **Usage events & metering** — `recordUsage` writes word/image events; `getUsageSnapshot`/`getUsageSeries`/`getFeatureUsage` aggregate live data with plan limits applied (sidebar meter, overview, analytics, billing all DB-backed)
+- [x] **Subscriptions/plans** — checkout attaches `orgId`/`plan` metadata; webhook syncs `Organization.plan` + Stripe IDs on lifecycle events (`setOrgPlan`)
+- [x] **Server actions** (`src/lib/actions.ts`) — `createProjectAction`, `createBrandVoiceAction`, `saveDocumentAction` (zod-validated, `revalidatePath`); wired into Workspace, Brand Voice, and the Studio "Save" button
+- [x] **Seed script** (`prisma/seed.ts`, `npm run db:seed`) — demo org, projects, documents, brand voices, and 14 days of generations/usage
+- [x] Data-backed dashboard pages set `dynamic = "force-dynamic"` so they never query Postgres during the static build
 
 ---
 
 ## 3. Remaining Features 🚧
 
 ### High priority (go-live)
-- [ ] **Persistence** — replace `src/lib/mock-data.ts` reads with Prisma queries; wire documents, projects, brand voices, brand kits to Postgres (schema already exists, **not yet imported anywhere**)
-- [ ] **Server actions / CRUD** — create/update/delete for projects, folders, documents, saved prompts
+- [x] ~~**Persistence**~~ — documents, projects, brand voices, generations, usage now wired to Postgres via `src/lib/data/` (demo fallback preserved)
+- [x] ~~**Stripe ↔ DB sync**~~ — webhook persists plan + Stripe IDs (`setOrgPlan`); checkout carries `orgId`/`plan` metadata
+- [x] ~~**Usage metering (recording)**~~ — `UsageRecord` rows written on every AI call; snapshots aggregate live
+- [ ] **Server actions — remaining CRUD** — update/delete for projects & documents; folders, saved prompts (read+write); team invites
 - [ ] **Real auth gating** — enforce redirect to `/login` for unauthenticated users in `(app)/layout.tsx` (currently falls back to demo user)
-- [ ] **Stripe ↔ DB sync** — persist plan changes in the webhook handler (`Organization.plan`, stripe IDs); customer portal session
-- [ ] **Usage metering** — write `UsageRecord` rows on each AI call; enforce plan limits
+- [ ] **Usage limit enforcement** — block/oversell handling when a plan's word/image quota is exceeded (recording is done; enforcement is not)
+- [ ] **Stripe customer portal** — real billing-portal session (button currently toasts)
+- [ ] **brand-kit persistence** — `BrandKit` model exists; Visual Generator brand kit is still client-only state
 
 ### Medium priority
 - [ ] Document auto-save + real version history (currently mock timeline)
@@ -103,7 +120,7 @@ response. **Do not break this** — it is what makes the whole product explorabl
 
 ## 4. Database Schema (`prisma/schema.prisma`)
 
-PostgreSQL via Prisma. **Defined but not yet wired into runtime.**
+PostgreSQL via Prisma. **Wired into runtime** through `src/lib/data/` (with demo fallback). 12 models.
 
 **Enums:** `PlanId` (starter|professional|executive|government) · `MemberRole` (owner|admin|editor|viewer) · `DocStatus` (draft|in_review|final)
 
@@ -119,9 +136,13 @@ PostgreSQL via Prisma. **Defined but not yet wired into runtime.**
 | `BrandVoice` | Reusable voice profile | `traits[]`, `sampleText` |
 | `BrandKit` | Visual brand assets | `colors[]`, `fontHeading`, `fontBody`, `logoUrl` |
 | `SavedPrompt` | Reusable prompt | `title`, `body` |
+| `Generation` | AI output ledger | `feature`, `prompt`, `output`, `provider`, `model`, `words`; indexed `[orgId, createdAt]` |
 | `UsageRecord` | Metering ledger | `kind` (words/images), `amount`, `feature`; indexed `[orgId, createdAt]` |
 
-Setup: `npm run db:generate && npm run db:push`
+Setup: `npm run db:generate && npm run db:push && npm run db:seed`
+
+**Wired models:** Organization, User, Membership, Project, Document, DocumentVersion (on create), BrandVoice, Generation, UsageRecord.
+**Not yet wired:** Folder, SavedPrompt, BrandKit (defined; UI still uses mock/local state).
 
 ---
 
@@ -155,7 +176,9 @@ Setup: `npm run db:generate && npm run db:push`
 | `/dashboard/billing` | Billing & Subscription |
 | `/dashboard/settings` | Settings |
 
-Rendering: marketing/auth/dashboard pages are static (`○`); API routes are dynamic (`ƒ`). Middleware runs as Proxy.
+Rendering: marketing/auth and the non-data dashboard pages are static (`○`); the
+five data-backed pages (overview, workspace, analytics, billing, brand-voice) and all
+API routes are dynamic (`ƒ`). Middleware runs as Proxy.
 
 ---
 
@@ -172,8 +195,15 @@ All under `src/app/api/`. JSON in/out, zod-validated, `runtime = "nodejs"`.
 | `/api/ai/research` | POST | `{ query, depth? }` | `{ brief, citations[] }` |
 | `/api/ai/proposal` | POST | `{ template, org, topic, details? }` | `{ text }` |
 | `/api/ai/visuals` | POST | `{ topic, platform, contentType, tone, audience }` | `{ slides[], caption, hashtags[] }` |
+| `/api/brand-voices` | GET | — | `{ voices[] }` (tenant-scoped; demo fallback) |
 | `/api/stripe/checkout` | POST | `{ plan }` | `{ url }` or `{ demo, message }` |
 | `/api/stripe/webhook` | POST | Stripe event (raw) | `{ received }` |
+
+Every `/api/ai/*` endpoint now persists a `Generation` row and metered `UsageRecord`(s)
+via `recordGeneration` (best-effort, non-blocking, no-op in demo mode).
+
+**Server actions** (`src/lib/actions.ts`): `createProjectAction`, `createBrandVoiceAction`,
+`saveDocumentAction` — zod-validated, `revalidatePath`, returning `{ ok, data | error }`.
 
 **AI router** (`src/lib/ai/providers.ts`): prefers Anthropic → OpenAI → Gemini based on configured keys; any error falls back to demo. Feature logic + demo generators live in `src/lib/ai/index.ts`.
 
@@ -210,12 +240,15 @@ All optional for demo; required per integration to go live.
 
 ### Go-live checklist
 1. Provision Supabase project → set `NEXT_PUBLIC_SUPABASE_*` + `DATABASE_URL`/`DIRECT_URL`
-2. `npm run db:generate && npm run db:push`
+2. `npm run db:generate && npm run db:push` (then `npm run db:seed` for demo data)
 3. Add at least one AI provider key
 4. Create Stripe products/prices → set price IDs; register webhook → `/api/stripe/webhook`
 5. Set `NEXT_PUBLIC_APP_URL` to the production domain
-6. Deploy (Vercel); add all env vars to the project
-7. Replace mock-data reads with Prisma queries (see §3) before real users
+6. Deploy (Vercel); add all env vars to the project. `prisma generate` runs automatically via `postinstall`.
+7. The data layer auto-activates the moment `DATABASE_URL` is present — no code changes needed.
+
+> Note: `@prisma/client` is a runtime dependency and a `postinstall: prisma generate`
+> hook keeps the generated client in sync on every install/deploy.
 
 ### Known notes
 - Next downgrade-safe at **16.2.9** (16.0.7 had a flagged CVE — do not revert)

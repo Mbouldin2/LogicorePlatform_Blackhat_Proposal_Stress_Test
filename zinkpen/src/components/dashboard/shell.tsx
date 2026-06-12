@@ -8,9 +8,11 @@ import { Badge } from "@/components/ui/badge";
 
 export function DashboardShell({
   user,
+  usage,
   children,
 }: {
   user: { name: string; email: string; plan: string };
+  usage: { wordsUsed: number; wordsLimit: number; plan: string };
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -23,7 +25,7 @@ export function DashboardShell({
 
   return (
     <div className="flex min-h-screen bg-[var(--color-canvas)]">
-      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} usage={usage} />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-[var(--color-border)] zp-glass px-4">

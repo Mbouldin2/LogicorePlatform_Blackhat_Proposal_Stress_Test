@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { research } from "@/lib/ai";
+import { recordGeneration } from "@/lib/data/generations";
 
 export const runtime = "nodejs";
 
@@ -13,5 +14,6 @@ export async function POST(req: Request) {
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   const result = await research(parsed.data);
+  await recordGeneration({ feature: "research", prompt: parsed.data.query, output: result.brief });
   return NextResponse.json(result);
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { generateVisualPlan } from "@/lib/ai";
+import { recordGeneration } from "@/lib/data/generations";
 
 export const runtime = "nodejs";
 
@@ -16,5 +17,7 @@ export async function POST(req: Request) {
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   const result = await generateVisualPlan(parsed.data);
+  const text = [result.caption, ...result.slides.map((s) => `${s.headline} ${s.body}`)].join(" ");
+  await recordGeneration({ feature: "visuals", prompt: parsed.data.topic, output: text, images: result.slides.length });
   return NextResponse.json(result);
 }
