@@ -19,7 +19,25 @@ export function BillingClient({
   currentPlan: PlanId;
 }) {
   const [loading, setLoading] = useState<PlanId | null>(null);
+  const [portalLoading, setPortalLoading] = useState(false);
   const planName = PLANS.find((p) => p.id === currentPlan)?.name ?? currentPlan;
+
+  async function openPortal() {
+    setPortalLoading(true);
+    try {
+      const res = await fetch("/api/stripe/portal", { method: "POST" });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        toast.message("Billing portal", { description: data.message ?? "Unavailable right now." });
+      }
+    } catch {
+      toast.error("Could not open the billing portal.");
+    } finally {
+      setPortalLoading(false);
+    }
+  }
 
   async function checkout(plan: PlanId) {
     setLoading(plan);
@@ -61,13 +79,21 @@ export function BillingClient({
             <CardContent className="space-y-5">
               {meters.map((m) => {
                 const pct = m.limit > 0 ? Math.round((m.used / m.limit) * 100) : 0;
+                const remaining = Math.max(0, m.limit - m.used);
+                const reached = m.used >= m.limit;
                 return (
                   <div key={m.label}>
                     <div className="mb-1.5 flex items-center justify-between text-sm">
-                      <span className="font-medium">{m.label}</span>
+                      <span className="flex items-center gap-2 font-medium">
+                        {m.label}
+                        {reached && <Badge variant="danger">Limit reached</Badge>}
+                      </span>
                       <span className="text-[var(--color-muted-foreground)]">{formatNumber(m.used)} / {formatNumber(m.limit)}</span>
                     </div>
-                    <Progress value={pct} tone={pct > 85 ? "danger" : "brand"} />
+                    <Progress value={pct} tone={pct >= 100 ? "danger" : pct > 85 ? "gold" : "brand"} />
+                    <p className="mt-1 text-xs text-[var(--color-muted-foreground)]">
+                      {reached ? "Upgrade your plan to keep creating." : `${formatNumber(remaining)} remaining`}
+                    </p>
                   </div>
                 );
               })}
@@ -84,7 +110,9 @@ export function BillingClient({
                 </div>
                 <p className="mt-1 text-xs text-[var(--color-muted-foreground)]">Expires 04/28</p>
               </div>
-              <Button variant="outline" className="w-full" onClick={() => toast.success("Opening Stripe customer portal…")}>Manage payment</Button>
+              <Button variant="outline" className="w-full" onClick={openPortal} disabled={portalLoading}>
+                {portalLoading && <Loader2 className="size-4 animate-spin" />} Manage payment
+              </Button>
             </CardContent>
           </Card>
         </div>

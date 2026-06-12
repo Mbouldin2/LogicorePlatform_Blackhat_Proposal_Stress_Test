@@ -2,7 +2,7 @@ import "server-only";
 import { getPrisma } from "@/lib/db/prisma";
 import { countWords } from "@/lib/utils";
 import { recordUsage } from "./usage";
-import { getTenant } from "./tenant";
+import { getOptionalTenant } from "./tenant";
 
 export type Feature = "studio" | "humanizer" | "grammar" | "research" | "proposal" | "visuals" | "chat";
 
@@ -21,7 +21,9 @@ export async function recordGeneration(params: {
   try {
     const prisma = getPrisma();
     const words = countWords(params.output);
-    const { orgId, userId } = await getTenant();
+    const tenant = await getOptionalTenant();
+    if (!tenant) return;
+    const { orgId, userId } = tenant;
 
     if (prisma) {
       await prisma.generation.create({

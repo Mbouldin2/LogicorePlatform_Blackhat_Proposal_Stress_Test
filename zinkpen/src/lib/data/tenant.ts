@@ -2,7 +2,6 @@ import "server-only";
 import { getPrisma } from "@/lib/db/prisma";
 import { DEMO_ORG_ID } from "@/lib/db/config";
 import { getCurrentUser } from "@/lib/supabase/server";
-import { DEMO_USER } from "@/lib/supabase/config";
 import type { PlanId } from "@/lib/constants";
 
 export interface Tenant {
@@ -15,33 +14,37 @@ export interface Tenant {
   demo: boolean;
 }
 
-/** Resolves the active tenant (user + organization). In DB mode this lazily
- *  provisions the User, Organization, and owner Membership on first access so a
- *  freshly authenticated user always has a workspace. In demo mode it returns
- *  stable demo identifiers and never touches Postgres. */
-export async function getTenant(): Promise<Tenant> {
-  const user = (await getCurrentUser()) ?? DEMO_USER;
-  const prisma = getPrisma();
+/** Thrown by `getTenant()` when auth is configured but the caller is not
+ *  authenticated. Callers that can tolerate anonymous access should use
+ *  `getOptionalTenant()` instead. */
+export class UnauthorizedError extends Error {
+  constructor() {
+    super("UNAUTHENTICATED");
+    this.name = "UnauthorizedError";
+  }
+}
 
+/** Resolves the active tenant, or `null` when auth is configured but the request
+ *  is unauthenticated. In demo mode (no Supabase) the demo operator is returned.
+ *  In DB mode this lazily provisions the User, Organization, and owner Membership
+ *  on first access so a freshly authenticated user always has a workspace. */
+export async function getOptionalTenant(): Promise<Tenant | null> {
+  // getCurrentUser returns the demo user when Supabase is unconfigured, and
+  // user-or-null when it IS configured — so null here means "must sign in".
+  const user = await getCurrentUser();
+  if (!user) return null;
+
+  const prisma = getPrisma();
   if (!prisma) {
-    return {
-      userId: user.id,
-      email: user.email,
-      name: user.name,
-      orgId: DEMO_ORG_ID,
-      plan: user.plan,
-      demo: true,
-    };
+    return { userId: user.id, email: user.email, name: user.name, orgId: DEMO_ORG_ID, plan: user.plan, demo: true };
   }
 
-  // Ensure the user exists.
   await prisma.user.upsert({
     where: { id: user.id },
     update: { email: user.email, name: user.name },
     create: { id: user.id, email: user.email, name: user.name },
   });
 
-  // Find an org the user belongs to, or create one and add them as owner.
   let membership = await prisma.membership.findFirst({
     where: { userId: user.id },
     include: { org: true },
@@ -70,4 +73,12 @@ export async function getTenant(): Promise<Tenant> {
     plan: membership!.org.plan as PlanId,
     demo: false,
   };
+}
+
+/** Strict tenant resolver — throws `UnauthorizedError` when unauthenticated.
+ *  Use in contexts that are already behind the auth gate (pages, actions). */
+export async function getTenant(): Promise<Tenant> {
+  const tenant = await getOptionalTenant();
+  if (!tenant) throw new UnauthorizedError();
+  return tenant;
 }

@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { ScoreRing } from "@/components/dashboard/widgets";
+import { wasBlocked } from "@/lib/client/ai-fetch";
 import type { HumanizeResult } from "@/types";
 import { countWords } from "@/lib/utils";
 
@@ -31,6 +32,7 @@ export default function HumanizerPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ text, creativity }),
       });
+      if (await wasBlocked(res)) return;
       setResult(await res.json());
       toast.success("Humanized");
     } catch {

@@ -7,10 +7,11 @@
 | **Repository** | `Mbouldin2/LogicorePlatform_Blackhat_Proposal_Stress_Test` |
 | **App directory** | `zinkpen/` |
 | **Branch** | `claude/zinkpen-saas-build-mdrzvk` (→ PR #1) |
-| **Build status** | ✅ `npm run build` + `npm run typecheck` pass · 28 routes compiled · APIs smoke-tested |
+| **Build status** | ✅ `npm run build` + `npm run typecheck` pass · 29 routes compiled · APIs smoke-tested |
 | **Runtime mode** | **Demo mode** — fully functional with zero secrets; upgrades to live (Postgres/auth/billing) automatically when env is present |
 | **Persistence** | ✅ Prisma data layer wired with demo fallback (documents, projects, brand voices, generations, usage, subscriptions) |
-| **Last updated** | 2026-06-12 (persistence milestone) |
+| **Access control** | ✅ Auth-gated dashboard (Supabase) + plan-based usage-limit enforcement on AI endpoints + Stripe customer portal |
+| **Last updated** | 2026-06-12 (access control & metering milestone) |
 
 ---
 
@@ -86,6 +87,15 @@ response. **Do not break this** — it is what makes the whole product explorabl
 - [x] **Seed script** (`prisma/seed.ts`, `npm run db:seed`) — demo org, projects, documents, brand voices, and 14 days of generations/usage
 - [x] Data-backed dashboard pages set `dynamic = "force-dynamic"` so they never query Postgres during the static build
 
+### Access Control & Metering ✅ (this milestone)
+- [x] **Auth gating** — `/dashboard/*` requires authentication when Supabase is configured. Enforced in two layers: middleware (`src/middleware.ts`) redirects unauthenticated `/dashboard` → `/login` and signed-in users away from `/login`/`/signup`; the app layout re-checks via `getOptionalTenant()` and redirects. **Demo mode (no Supabase) stays fully open.**
+- [x] **Tenant split** — `getOptionalTenant()` (returns `null` when configured + unauthenticated) and strict `getTenant()` (throws `UnauthorizedError`)
+- [x] **Usage-limit enforcement** — `guardGeneration(kind)` (`src/lib/api/guard.ts`) runs before every `/api/ai/*` handler: 401 when unauthenticated, **402 `limit_reached`** with `{ message, used, limit, plan, upgradeUrl }` when over quota. Text endpoints meter `words`; visuals meter `images`. Enforcement is **active only when a database is metering usage**; demo mode is never blocked, and the check **fails open** on any metering error
+- [x] **Quota checker** (`src/lib/data/quota.ts`) — compares cycle usage to the plan limit
+- [x] **Client gating UX** (`src/lib/client/ai-fetch.ts`) — `wasBlocked(res)` surfaces a "Sign in" toast (401) or an "Upgrade" toast linking to billing (402); wired into all six AI pages + the AI assistant
+- [x] **Usage UI states** — sidebar meter and billing meters show **remaining usage**, a **Limit reached** badge, and an upgrade prompt; progress turns gold near the cap and red at 100%
+- [x] **Stripe customer portal** — `POST /api/stripe/portal` opens a billing-portal session (manage card, invoices, cancel); "Manage payment" button wired; degrades to a clear demo message
+
 ---
 
 ## 3. Remaining Features 🚧
@@ -94,11 +104,13 @@ response. **Do not break this** — it is what makes the whole product explorabl
 - [x] ~~**Persistence**~~ — documents, projects, brand voices, generations, usage now wired to Postgres via `src/lib/data/` (demo fallback preserved)
 - [x] ~~**Stripe ↔ DB sync**~~ — webhook persists plan + Stripe IDs (`setOrgPlan`); checkout carries `orgId`/`plan` metadata
 - [x] ~~**Usage metering (recording)**~~ — `UsageRecord` rows written on every AI call; snapshots aggregate live
+- [x] ~~**Real auth gating**~~ — middleware + layout gate `/dashboard/*` when Supabase is configured (demo stays open)
+- [x] ~~**Usage limit enforcement**~~ — `guardGeneration` returns 402 over quota; client shows upgrade UI
+- [x] ~~**Stripe customer portal**~~ — `POST /api/stripe/portal` + wired "Manage payment" button
 - [ ] **Server actions — remaining CRUD** — update/delete for projects & documents; folders, saved prompts (read+write); team invites
-- [ ] **Real auth gating** — enforce redirect to `/login` for unauthenticated users in `(app)/layout.tsx` (currently falls back to demo user)
-- [ ] **Usage limit enforcement** — block/oversell handling when a plan's word/image quota is exceeded (recording is done; enforcement is not)
-- [ ] **Stripe customer portal** — real billing-portal session (button currently toasts)
 - [ ] **brand-kit persistence** — `BrandKit` model exists; Visual Generator brand kit is still client-only state
+- [ ] **Per-seat / role enforcement** — `MemberRole` exists; not yet enforced on actions
+- [ ] **Token-accurate metering** — usage is metered by output word count; switch to provider token usage for billing-grade accuracy
 
 ### Medium priority
 - [ ] Document auto-save + real version history (currently mock timeline)
@@ -197,10 +209,13 @@ All under `src/app/api/`. JSON in/out, zod-validated, `runtime = "nodejs"`.
 | `/api/ai/visuals` | POST | `{ topic, platform, contentType, tone, audience }` | `{ slides[], caption, hashtags[] }` |
 | `/api/brand-voices` | GET | — | `{ voices[] }` (tenant-scoped; demo fallback) |
 | `/api/stripe/checkout` | POST | `{ plan }` | `{ url }` or `{ demo, message }` |
+| `/api/stripe/portal` | POST | — | `{ url }` or `{ demo, message }` |
 | `/api/stripe/webhook` | POST | Stripe event (raw) | `{ received }` |
 
-Every `/api/ai/*` endpoint now persists a `Generation` row and metered `UsageRecord`(s)
-via `recordGeneration` (best-effort, non-blocking, no-op in demo mode).
+Every `/api/ai/*` endpoint is **auth- and quota-guarded** (`guardGeneration`): `401`
+when unauthenticated, `402 limit_reached` when over plan quota, otherwise it runs,
+persists a `Generation`, and meters `UsageRecord`(s). Guarding/metering are no-ops in
+demo mode (never blocked).
 
 **Server actions** (`src/lib/actions.ts`): `createProjectAction`, `createBrandVoiceAction`,
 `saveDocumentAction` — zod-validated, `revalidatePath`, returning `{ ok, data | error }`.
@@ -249,6 +264,11 @@ All optional for demo; required per integration to go live.
 
 > Note: `@prisma/client` is a runtime dependency and a `postinstall: prisma generate`
 > hook keeps the generated client in sync on every install/deploy.
+>
+> **Access control activates with env:** auth gating turns on when
+> `NEXT_PUBLIC_SUPABASE_*` is set; usage-limit enforcement turns on when
+> `DATABASE_URL` is set (real metering). With neither, the app stays in open demo
+> mode. The billing portal needs `STRIPE_SECRET_KEY` and an org with a Stripe customer.
 
 ### Known notes
 - Next downgrade-safe at **16.2.9** (16.0.7 had a flagged CVE — do not revert)

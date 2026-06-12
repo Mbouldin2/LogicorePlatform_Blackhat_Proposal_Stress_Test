@@ -19,6 +19,7 @@ import {
   PALETTE_PRESETS, FONT_PAIRINGS,
 } from "@/lib/constants";
 import { renderSlideToDataUrl, downloadDataUrl, type RenderStyle } from "@/lib/visuals/render";
+import { wasBlocked } from "@/lib/client/ai-fetch";
 import type { CarouselSlide } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -79,6 +80,7 @@ export default function VisualsPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ topic, platform, contentType, tone, audience: audience || "decision-makers" }),
       });
+      if (await wasBlocked(res)) return;
       const data = await res.json();
       setSlides(data.slides ?? []);
       setCaption(data.caption ?? "");

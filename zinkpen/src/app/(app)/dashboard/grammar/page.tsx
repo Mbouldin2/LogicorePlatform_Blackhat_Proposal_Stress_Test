@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { wasBlocked } from "@/lib/client/ai-fetch";
 import type { GrammarIssue, ReadabilityReport } from "@/types";
 import { countWords } from "@/lib/utils";
 
@@ -39,6 +40,7 @@ export default function GrammarPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ text }),
       });
+      if (await wasBlocked(res)) return;
       const data = await res.json();
       setIssues(data.issues ?? []);
       setReport(data.report ?? null);

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Markdown } from "@/components/shared/markdown";
+import { wasBlocked } from "@/lib/client/ai-fetch";
 import type { Citation } from "@/types";
 
 const relColor: Record<Citation["reliability"], "success" | "warning" | "muted"> = {
@@ -34,6 +35,7 @@ export default function ResearchPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ query, depth: "deep" }),
       });
+      if (await wasBlocked(res)) return;
       const data = await res.json();
       setBrief(data.brief ?? "");
       setCitations(data.citations ?? []);

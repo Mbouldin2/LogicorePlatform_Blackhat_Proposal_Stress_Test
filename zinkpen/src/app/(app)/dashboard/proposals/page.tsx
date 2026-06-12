@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Markdown } from "@/components/shared/markdown";
+import { wasBlocked } from "@/lib/client/ai-fetch";
 import { PROPOSAL_TEMPLATES } from "@/lib/constants";
 import { cn, countWords } from "@/lib/utils";
 
@@ -34,6 +35,7 @@ export default function ProposalsPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ template, org, topic, details }),
       });
+      if (await wasBlocked(res)) return;
       const data = await res.json();
       setOutput(data.text ?? "");
       toast.success("Draft ready");

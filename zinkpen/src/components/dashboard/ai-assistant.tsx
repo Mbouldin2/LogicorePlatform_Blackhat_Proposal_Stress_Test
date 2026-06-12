@@ -4,6 +4,7 @@ import { X, Send, Sparkles, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Markdown } from "@/components/shared/markdown";
+import { wasBlocked } from "@/lib/client/ai-fetch";
 import type { AIMessage } from "@/types";
 
 const STARTERS = [
@@ -41,6 +42,7 @@ export function AIAssistant({ open, onClose }: { open: boolean; onClose: () => v
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ messages: next.filter((m) => m.role !== "system") }),
       });
+      if (await wasBlocked(res)) return;
       const data = await res.json();
       setMessages((m) => [...m, { role: "assistant", content: data.text ?? "Sorry, I hit a snag." }]);
     } catch {

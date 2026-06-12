@@ -14,6 +14,7 @@ import { Markdown } from "@/components/shared/markdown";
 import { WRITING_TEMPLATES, TONES } from "@/lib/constants";
 import { MOCK_VOICES } from "@/lib/mock-data";
 import { saveDocumentAction } from "@/lib/actions";
+import { wasBlocked } from "@/lib/client/ai-fetch";
 import type { BrandVoice } from "@/types";
 import { countWords, readingTime } from "@/lib/utils";
 
@@ -68,6 +69,7 @@ export default function StudioPage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ template, topic, tone, audience, keywords, length, brandVoice: voice || undefined }),
       });
+      if (await wasBlocked(res)) return;
       const data = await res.json();
       setOutput(data.text ?? "");
       setView("preview");
