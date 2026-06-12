@@ -1,16 +1,21 @@
 "use client";
 import { useState } from "react";
 import { toast } from "sonner";
-import { FolderKanban, FileText, Plus, Users, Bookmark, History, Clock, Loader2 } from "lucide-react";
+import { FolderKanban, FileText, Plus, Users, Bookmark, History, Clock, Loader2, Pencil, Trash2, Check, X } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/shell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Select } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/dashboard/widgets";
-import { createProjectAction, inviteMemberAction } from "@/lib/actions";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  createProjectAction, updateProjectAction, deleteProjectAction,
+  updateDocumentAction, deleteDocumentAction, inviteMemberAction,
+} from "@/lib/actions";
 import type { Project, Doc } from "@/types";
 import { formatNumber, timeAgo } from "@/lib/utils";
 
@@ -37,54 +42,142 @@ const VERSIONS = [
 ];
 
 const PROJECT_COLORS = ["#5b63f0", "#0F766E", "#9333ea", "#e3a833", "#2563EB", "#dc4040"];
+const STATUS_OPTIONS = [
+  { value: "draft", label: "Draft" },
+  { value: "in-review", label: "In review" },
+  { value: "final", label: "Final" },
+];
+
+type Pending = { kind: "project" | "document"; id: string; label: string } | null;
 
 export function WorkspaceClient({
   initialProjects,
   initialDocuments,
   canCreate,
+  canDelete,
   canManageTeam,
 }: {
   initialProjects: Project[];
   initialDocuments: Doc[];
   canCreate: boolean;
+  canDelete: boolean;
   canManageTeam: boolean;
 }) {
   const [tab, setTab] = useState("projects");
   const [projects, setProjects] = useState<Project[]>(initialProjects);
-  const [docs] = useState<Doc[]>(initialDocuments);
-  const [creating, setCreating] = useState(false);
+  const [docs, setDocs] = useState<Doc[]>(initialDocuments);
+
+  // Project create/edit form
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
   const [color, setColor] = useState(PROJECT_COLORS[0]);
   const [busy, setBusy] = useState(false);
 
-  async function create() {
+  // Document inline edit
+  const [editDocId, setEditDocId] = useState<string | null>(null);
+  const [docTitle, setDocTitle] = useState("");
+  const [docStatus, setDocStatus] = useState<Doc["status"]>("draft");
+  const [docBusy, setDocBusy] = useState(false);
+
+  // Delete confirmation
+  const [pending, setPending] = useState<Pending>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  function resetForm() {
+    setFormOpen(false);
+    setEditingId(null);
+    setName("");
+    setDesc("");
+    setColor(PROJECT_COLORS[0]);
+  }
+
+  function startCreate() {
+    resetForm();
+    setFormOpen(true);
+    setTab("projects");
+  }
+
+  function startEditProject(p: Project) {
+    setEditingId(p.id);
+    setName(p.name);
+    setDesc(p.description ?? "");
+    setColor(p.color);
+    setFormOpen(true);
+    setTab("projects");
+  }
+
+  async function submitProject() {
     if (!name.trim()) {
       toast.error("Give the project a name.");
       return;
     }
     setBusy(true);
-    const result = await createProjectAction({ name, description: desc || undefined, color });
-    setBusy(false);
-    if (!result.ok) {
-      toast.error(result.error);
+    if (editingId) {
+      const res = await updateProjectAction({ id: editingId, name, description: desc || undefined, color });
+      setBusy(false);
+      if (!res.ok) return toast.error(res.error);
+      setProjects((prev) => prev.map((p) => (p.id === editingId ? { ...p, name, description: desc || undefined, color } : p)));
+      resetForm();
+      toast.success("Project updated");
+    } else {
+      const res = await createProjectAction({ name, description: desc || undefined, color });
+      setBusy(false);
+      if (!res.ok) return toast.error(res.error);
+      setProjects((prev) => [res.data, ...prev]);
+      resetForm();
+      toast.success(`Project "${res.data.name}" created`);
+    }
+  }
+
+  function startEditDoc(d: Doc) {
+    setEditDocId(d.id);
+    setDocTitle(d.title);
+    setDocStatus(d.status);
+  }
+
+  async function saveDoc() {
+    if (!editDocId || !docTitle.trim()) {
+      toast.error("Title is required.");
       return;
     }
-    setProjects((prev) => [result.data, ...prev]);
-    setCreating(false);
-    setName("");
-    setDesc("");
-    toast.success(`Project "${result.data.name}" created`);
+    setDocBusy(true);
+    const res = await updateDocumentAction({ id: editDocId, title: docTitle, status: docStatus });
+    setDocBusy(false);
+    if (!res.ok) return toast.error(res.error);
+    setDocs((prev) => prev.map((d) => (d.id === editDocId ? { ...d, title: docTitle, status: docStatus } : d)));
+    setEditDocId(null);
+    toast.success("Document updated");
+  }
+
+  async function confirmDelete() {
+    if (!pending) return;
+    setDeleting(true);
+    const res = pending.kind === "project"
+      ? await deleteProjectAction({ id: pending.id })
+      : await deleteDocumentAction({ id: pending.id });
+    setDeleting(false);
+    if (!res.ok) {
+      toast.error(res.error);
+      setPending(null);
+      return;
+    }
+    if (pending.kind === "project") {
+      setProjects((prev) => prev.filter((p) => p.id !== pending.id));
+      setDocs((prev) => prev.filter((d) => d.projectId !== pending.id)); // cascade
+    } else {
+      setDocs((prev) => prev.filter((d) => d.id !== pending.id));
+    }
+    toast.success(`${pending.kind === "project" ? "Project" : "Document"} deleted`);
+    setPending(null);
   }
 
   async function inviteFlow() {
     const email = window.prompt("Invite a teammate by email:");
     if (!email) return;
     const res = await inviteMemberAction({ email, role: "editor" });
-    if (!res.ok) {
-      toast.error(res.error);
-      return;
-    }
+    if (!res.ok) return toast.error(res.error);
     toast.success(`Invite sent to ${res.data.email}`);
   }
 
@@ -95,7 +188,7 @@ export function WorkspaceClient({
         description="Projects, folders, documents, saved prompts, team, and version history."
         actions={
           canCreate ? (
-            <Button onClick={() => { setTab("projects"); setCreating((v) => !v); }}>
+            <Button onClick={() => (formOpen ? resetForm() : startCreate())}>
               <Plus className="size-4" /> New project
             </Button>
           ) : (
@@ -114,9 +207,9 @@ export function WorkspaceClient({
           </TabsList>
 
           <TabsContent value="projects" className="mt-5">
-            {creating && (
+            {formOpen && canCreate && (
               <Card className="mb-4">
-                <CardHeader><CardTitle>New project</CardTitle></CardHeader>
+                <CardHeader><CardTitle>{editingId ? "Edit project" : "New project"}</CardTitle></CardHeader>
                 <CardContent className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <Label htmlFor="pname">Name</Label>
@@ -141,10 +234,10 @@ export function WorkspaceClient({
                     </div>
                   </div>
                   <div className="flex gap-2 sm:col-span-2">
-                    <Button onClick={create} disabled={busy}>
-                      {busy ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />} Create project
+                    <Button onClick={submitProject} disabled={busy}>
+                      {busy ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />} {editingId ? "Save changes" : "Create project"}
                     </Button>
-                    <Button variant="ghost" onClick={() => setCreating(false)}>Cancel</Button>
+                    <Button variant="ghost" onClick={resetForm}>Cancel</Button>
                   </div>
                 </CardContent>
               </Card>
@@ -154,23 +247,37 @@ export function WorkspaceClient({
                 icon={FolderKanban}
                 title="No projects yet"
                 description="Create your first project to organize documents, folders, and brand assets."
-                action={canCreate ? <Button onClick={() => setCreating(true)}><Plus className="size-4" /> New project</Button> : undefined}
+                action={canCreate ? <Button onClick={startCreate}><Plus className="size-4" /> New project</Button> : undefined}
               />
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {projects.map((p) => (
-                  <Card key={p.id} className="p-5 transition-all hover:shadow-[var(--shadow-pop)]">
+                  <Card key={p.id} className="group flex flex-col p-5 transition-all hover:shadow-[var(--shadow-pop)]">
                     <div className="flex items-center gap-3">
                       <span className="inline-flex size-10 items-center justify-center rounded-lg text-white" style={{ background: p.color }}>
                         <FolderKanban className="size-5" />
                       </span>
-                      <div>
-                        <h3 className="font-semibold">{p.name}</h3>
+                      <div className="min-w-0">
+                        <h3 className="truncate font-semibold">{p.name}</h3>
                         <p className="text-xs text-[var(--color-muted-foreground)]">{p.documents} documents</p>
                       </div>
                     </div>
                     {p.description && <p className="mt-3 text-sm text-[var(--color-muted-foreground)]">{p.description}</p>}
                     <p className="mt-3 flex items-center gap-1 text-xs text-[var(--color-muted-foreground)]"><Clock className="size-3" /> Updated {timeAgo(p.updatedAt)}</p>
+                    {(canCreate || canDelete) && (
+                      <div className="mt-4 flex gap-1.5 border-t border-[var(--color-border)] pt-3">
+                        {canCreate && (
+                          <Button variant="ghost" size="sm" onClick={() => startEditProject(p)}>
+                            <Pencil className="size-3.5" /> Edit
+                          </Button>
+                        )}
+                        {canDelete && (
+                          <Button variant="ghost" size="sm" className="text-[var(--color-danger)] hover:bg-red-50" onClick={() => setPending({ kind: "project", id: p.id, label: p.name })}>
+                            <Trash2 className="size-3.5" /> Delete
+                          </Button>
+                        )}
+                      </div>
+                    )}
                   </Card>
                 ))}
               </div>
@@ -190,11 +297,30 @@ export function WorkspaceClient({
                   {docs.map((d) => (
                     <div key={d.id} className="flex items-center gap-3 px-5 py-3.5 hover:bg-[var(--color-muted)]">
                       <span className="inline-flex size-9 items-center justify-center rounded-lg bg-[var(--color-ink-50)] text-[var(--color-ink-600)]"><FileText className="size-4" /></span>
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-medium">{d.title}</div>
-                        <div className="text-xs text-[var(--color-muted-foreground)]">{d.type} · {formatNumber(d.words)} words · {timeAgo(d.updatedAt)}</div>
-                      </div>
-                      <Badge variant={d.status === "final" ? "success" : d.status === "in-review" ? "warning" : "muted"}>{d.status}</Badge>
+                      {editDocId === d.id ? (
+                        <>
+                          <Input value={docTitle} onChange={(e) => setDocTitle(e.target.value)} className="h-9 flex-1" />
+                          <Select value={docStatus} onValueChange={(v) => setDocStatus(v as Doc["status"])} options={STATUS_OPTIONS} className="w-32" />
+                          <Button size="icon" variant="ghost" onClick={saveDoc} disabled={docBusy} aria-label="Save">
+                            {docBusy ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4 text-[var(--color-success)]" />}
+                          </Button>
+                          <Button size="icon" variant="ghost" onClick={() => setEditDocId(null)} aria-label="Cancel"><X className="size-4" /></Button>
+                        </>
+                      ) : (
+                        <>
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-sm font-medium">{d.title}</div>
+                            <div className="text-xs text-[var(--color-muted-foreground)]">{d.type} · {formatNumber(d.words)} words · {timeAgo(d.updatedAt)}</div>
+                          </div>
+                          <Badge variant={d.status === "final" ? "success" : d.status === "in-review" ? "warning" : "muted"}>{d.status}</Badge>
+                          {canCreate && (
+                            <Button size="icon" variant="ghost" onClick={() => startEditDoc(d)} aria-label="Edit"><Pencil className="size-3.5" /></Button>
+                          )}
+                          {canDelete && (
+                            <Button size="icon" variant="ghost" className="text-[var(--color-danger)] hover:bg-red-50" onClick={() => setPending({ kind: "document", id: d.id, label: d.title })} aria-label="Delete"><Trash2 className="size-3.5" /></Button>
+                          )}
+                        </>
+                      )}
                     </div>
                   ))}
                 </CardContent>
@@ -264,6 +390,19 @@ export function WorkspaceClient({
           </TabsContent>
         </Tabs>
       </div>
+
+      <ConfirmDialog
+        open={pending !== null}
+        title={`Delete ${pending?.kind === "project" ? "project" : "document"}?`}
+        description={
+          pending?.kind === "project"
+            ? `"${pending?.label}" and all of its documents will be permanently deleted. This can't be undone.`
+            : `"${pending?.label}" will be permanently deleted. This can't be undone.`
+        }
+        loading={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setPending(null)}
+      />
     </>
   );
 }

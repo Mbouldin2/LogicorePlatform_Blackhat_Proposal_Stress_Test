@@ -89,3 +89,36 @@ export async function createDocument(
     excerpt: excerpt(d.content),
   };
 }
+
+/** Update a document (org-scoped via its project). Returns false when not found
+ *  or owned by another org. No-op success in demo mode. */
+export async function updateDocument(
+  orgId: string,
+  id: string,
+  patch: { title?: string; status?: Doc["status"]; content?: string },
+): Promise<boolean> {
+  const prisma = getPrisma();
+  if (!prisma) return true;
+  // updateMany can't filter on relations, so verify ownership first.
+  const owned = await prisma.document.findFirst({ where: { id, project: { orgId } }, select: { id: true } });
+  if (!owned) return false;
+  const data: { title?: string; status?: DbStatus; content?: string; words?: number } = {};
+  if (patch.title !== undefined) data.title = patch.title;
+  if (patch.status !== undefined) data.status = toDbStatus(patch.status);
+  if (patch.content !== undefined) {
+    data.content = patch.content;
+    data.words = countWords(patch.content);
+  }
+  await prisma.document.update({ where: { id }, data });
+  return true;
+}
+
+/** Delete a document (org-scoped via its project). */
+export async function deleteDocument(orgId: string, id: string): Promise<boolean> {
+  const prisma = getPrisma();
+  if (!prisma) return true;
+  const owned = await prisma.document.findFirst({ where: { id, project: { orgId } }, select: { id: true } });
+  if (!owned) return false;
+  await prisma.document.delete({ where: { id } });
+  return true;
+}

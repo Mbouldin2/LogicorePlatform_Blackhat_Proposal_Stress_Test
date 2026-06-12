@@ -55,3 +55,24 @@ export async function createProject(
     updatedAt: p.updatedAt.toISOString(),
   };
 }
+
+/** Update a project (org-scoped). Returns false when no matching row exists —
+ *  i.e. not found or belongs to another org. No-op success in demo mode. */
+export async function updateProject(
+  orgId: string,
+  id: string,
+  data: { name?: string; description?: string; color?: string },
+): Promise<boolean> {
+  const prisma = getPrisma();
+  if (!prisma) return true;
+  const res = await prisma.project.updateMany({ where: { id, orgId }, data });
+  return res.count > 0;
+}
+
+/** Delete a project and its documents (cascade), org-scoped. */
+export async function deleteProject(orgId: string, id: string): Promise<boolean> {
+  const prisma = getPrisma();
+  if (!prisma) return true;
+  const res = await prisma.project.deleteMany({ where: { id, orgId } });
+  return res.count > 0;
+}

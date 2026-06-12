@@ -12,6 +12,7 @@ import {
   canManageBilling,
   canManageTeam,
   canCreateContent,
+  canDeleteContent,
   evaluateRoleAccess,
   type Role,
 } from "../src/lib/auth/roles";
@@ -35,6 +36,12 @@ check("viewer cannot create content", canCreateContent("viewer"), false);
 check("editor can create content", canCreateContent("editor"), true);
 check("admin can create content", canCreateContent("admin"), true);
 check("owner can create content", canCreateContent("owner"), true);
+
+console.log("\n— canDeleteContent (admin+) — CRUD delete gate —");
+check("viewer cannot delete", canDeleteContent("viewer"), false);
+check("editor cannot delete", canDeleteContent("editor"), false);
+check("admin can delete", canDeleteContent("admin"), true);
+check("owner can delete", canDeleteContent("owner"), true);
 
 console.log("\n— canManageTeam (admin+) —");
 check("viewer cannot manage team", canManageTeam("viewer"), false);

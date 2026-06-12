@@ -11,7 +11,8 @@
 | **Runtime mode** | **Demo mode** — fully functional with zero secrets; upgrades to live (Postgres/auth/billing) automatically when env is present |
 | **Persistence** | ✅ Prisma data layer wired with demo fallback (documents, projects, brand voices, generations, usage, subscriptions) |
 | **Access control** | ✅ Auth-gated dashboard + plan-based usage limits + **role-based access control** (owner/admin/editor/viewer) + Stripe customer portal |
-| **Last updated** | 2026-06-12 (RBAC milestone) |
+| **CRUD** | ✅ Create/update/delete for Projects, Documents, and Brand Voices — org-scoped, role-gated, with delete confirmation |
+| **Last updated** | 2026-06-12 (CRUD update/delete milestone) |
 
 ---
 
@@ -107,6 +108,13 @@ response. **Do not break this** — it is what makes the whole product explorabl
 - [x] **403 UX** — `wasBlocked()` surfaces an "Access restricted" toast on 403; `AccessDenied` page component for restricted routes
 - [x] **Proof** — `npm run test:roles` asserts the full permission matrix **and** the 401/403 decision (viewer/editor denied billing & team; viewer denied content; no-session → 401; insufficient role → 403). Demo owner retains full access (HTTP smoke)
 
+### CRUD Update/Delete ✅ (this milestone)
+- [x] **Data layer** — `updateProject`/`deleteProject`, `updateDocument`/`deleteDocument`, `updateBrandVoice`/`deleteBrandVoice`. All **org-scoped**: writes use `updateMany`/`deleteMany` on `{ id, orgId }`, and documents (no scalar `orgId`) verify ownership via `findFirst({ project: { orgId } })` before mutating. Cross-org rows return "not found". No-op success in demo mode
+- [x] **Server actions** — `updateProjectAction` / `updateDocumentAction` / `updateBrandVoiceAction` (editor+) and `deleteProjectAction` / `deleteDocumentAction` / `deleteBrandVoiceAction` (admin+), all zod-validated with `revalidatePath`; return a clear "not found / no access" error
+- [x] **Role gating** — viewer = read-only; editor = create + update; admin/owner = create + update + delete (`canDeleteContent` predicate, covered by `test:roles`)
+- [x] **Delete confirmation** — reusable `ConfirmDialog` (dependency-free modal) guards every destructive action; project delete warns that its documents cascade
+- [x] **UI (no redesign)** — Projects: inline edit (reuses the create form) + Delete; Documents: inline row edit (title + status) + Delete; Brand Voices: inline card edit (name + description) + Delete. Edit controls shown to editor+, Delete controls to admin+; optimistic state updates; toast on error; **empty states** for projects, documents, and voices
+
 ---
 
 ## 3. Remaining Features 🚧
@@ -119,7 +127,8 @@ response. **Do not break this** — it is what makes the whole product explorabl
 - [x] ~~**Usage limit enforcement**~~ — `guardGeneration` returns 402 over quota; client shows upgrade UI
 - [x] ~~**Stripe customer portal**~~ — `POST /api/stripe/portal` + wired "Manage payment" button
 - [x] ~~**Per-seat / role enforcement**~~ — full RBAC (owner/admin/editor/viewer) enforced server-side on routes & actions
-- [ ] **Server actions — remaining CRUD** — update/delete for projects & documents; folders, saved prompts (read+write)
+- [x] ~~**CRUD update/delete**~~ — projects, documents, brand voices (org-scoped, role-gated, confirm dialog)
+- [ ] **Folders & saved prompts CRUD** — models exist; not yet wired (read or write)
 - [ ] **Team invite persistence** — `inviteMemberAction` enforces the admin gate but needs an `Invitation` model + email delivery + membership creation
 - [ ] **brand-kit persistence** — `BrandKit` model exists; Visual Generator brand kit is still client-only state
 - [ ] **Token-accurate metering** — usage is metered by output word count; switch to provider token usage for billing-grade accuracy
@@ -236,8 +245,10 @@ when over plan quota, otherwise it runs, persists a `Generation`, and meters
 `canManageBilling/Team/Org`, `canCreateContent`, `evaluateRoleAccess`. Tested via
 `npm run test:roles`.
 
-**Server actions** (`src/lib/actions.ts`): `createProjectAction`, `createBrandVoiceAction`,
-`saveDocumentAction` — zod-validated, `revalidatePath`, returning `{ ok, data | error }`.
+**Server actions** (`src/lib/actions.ts`): create/update/delete for projects,
+documents, and brand voices (+ `inviteMemberAction`) — zod-validated, role-gated
+(editor+ for create/update, admin+ for delete), `revalidatePath`, returning
+`{ ok, data | error }`.
 
 **AI router** (`src/lib/ai/providers.ts`): prefers Anthropic → OpenAI → Gemini based on configured keys; any error falls back to demo. Feature logic + demo generators live in `src/lib/ai/index.ts`.
 

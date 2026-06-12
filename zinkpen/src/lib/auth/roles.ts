@@ -24,9 +24,14 @@ export function canManageTeam(role: Role): boolean {
   return roleAtLeast(role, "admin");
 }
 
-/** Generate/save content, create projects, brand voices, etc. */
+/** Generate/save content, create + update projects, brand voices, etc. */
 export function canCreateContent(role: Role): boolean {
   return roleAtLeast(role, "editor");
+}
+
+/** Delete content (projects, documents, brand voices) — admin+. */
+export function canDeleteContent(role: Role): boolean {
+  return roleAtLeast(role, "admin");
 }
 
 /** Admin-level org settings. */

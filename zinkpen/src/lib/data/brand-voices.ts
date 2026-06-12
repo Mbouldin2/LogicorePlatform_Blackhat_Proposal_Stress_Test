@@ -55,3 +55,23 @@ export async function createBrandVoice(
     createdAt: v.createdAt.toISOString(),
   };
 }
+
+/** Update a brand voice (org-scoped). Returns false when not found / other org. */
+export async function updateBrandVoice(
+  orgId: string,
+  id: string,
+  data: { name?: string; description?: string; traits?: string[] },
+): Promise<boolean> {
+  const prisma = getPrisma();
+  if (!prisma) return true;
+  const res = await prisma.brandVoice.updateMany({ where: { id, orgId }, data });
+  return res.count > 0;
+}
+
+/** Delete a brand voice (org-scoped). */
+export async function deleteBrandVoice(orgId: string, id: string): Promise<boolean> {
+  const prisma = getPrisma();
+  if (!prisma) return true;
+  const res = await prisma.brandVoice.deleteMany({ where: { id, orgId } });
+  return res.count > 0;
+}
