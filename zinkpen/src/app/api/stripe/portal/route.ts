@@ -1,16 +1,17 @@
 import { NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe/server";
-import { getOptionalTenant } from "@/lib/data/tenant";
+import { apiRequireRole } from "@/lib/api/guard";
 import { getOrgStripeCustomerId } from "@/lib/data/subscription";
 
 export const runtime = "nodejs";
 
 /** Opens the Stripe Customer Portal for the current org, where users manage
- *  payment methods, invoices, and cancellation. Degrades to a demo message when
- *  Stripe isn't configured or the org has no Stripe customer yet. */
+ *  payment methods, invoices, and cancellation. Admin-only. Degrades to a demo
+ *  message when Stripe isn't configured or the org has no Stripe customer yet. */
 export async function POST() {
-  const tenant = await getOptionalTenant();
-  if (!tenant) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+  const guard = await apiRequireRole("admin");
+  if ("error" in guard) return guard.error;
+  const tenant = guard.tenant;
 
   const stripe = getStripe();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";

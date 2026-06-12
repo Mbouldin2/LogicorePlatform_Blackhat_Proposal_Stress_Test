@@ -25,7 +25,13 @@ function deriveTraits(sample: string): string[] {
   return [...new Set(traits)];
 }
 
-export function BrandVoiceClient({ initialVoices }: { initialVoices: BrandVoice[] }) {
+export function BrandVoiceClient({
+  initialVoices,
+  canCreate,
+}: {
+  initialVoices: BrandVoice[];
+  canCreate: boolean;
+}) {
   const [voices, setVoices] = useState<BrandVoice[]>(initialVoices);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
@@ -65,9 +71,13 @@ export function BrandVoiceClient({ initialVoices }: { initialVoices: BrandVoice[
         title="Brand Voice System"
         description="Upload documents, learn your style, and apply reusable voice profiles to any generation."
         actions={
-          <Button onClick={() => setCreating((v) => !v)}>
-            <Plus className="size-4" /> New voice
-          </Button>
+          canCreate ? (
+            <Button onClick={() => setCreating((v) => !v)}>
+              <Plus className="size-4" /> New voice
+            </Button>
+          ) : (
+            <Badge variant="muted">View-only access</Badge>
+          )
         }
       />
       <div className="space-y-6 p-6">

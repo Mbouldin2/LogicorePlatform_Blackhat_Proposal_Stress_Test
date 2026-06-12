@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/dashboard/widgets";
-import { createProjectAction } from "@/lib/actions";
+import { createProjectAction, inviteMemberAction } from "@/lib/actions";
 import type { Project, Doc } from "@/types";
 import { formatNumber, timeAgo } from "@/lib/utils";
 
@@ -41,9 +41,13 @@ const PROJECT_COLORS = ["#5b63f0", "#0F766E", "#9333ea", "#e3a833", "#2563EB", "
 export function WorkspaceClient({
   initialProjects,
   initialDocuments,
+  canCreate,
+  canManageTeam,
 }: {
   initialProjects: Project[];
   initialDocuments: Doc[];
+  canCreate: boolean;
+  canManageTeam: boolean;
 }) {
   const [tab, setTab] = useState("projects");
   const [projects, setProjects] = useState<Project[]>(initialProjects);
@@ -73,15 +77,30 @@ export function WorkspaceClient({
     toast.success(`Project "${result.data.name}" created`);
   }
 
+  async function inviteFlow() {
+    const email = window.prompt("Invite a teammate by email:");
+    if (!email) return;
+    const res = await inviteMemberAction({ email, role: "editor" });
+    if (!res.ok) {
+      toast.error(res.error);
+      return;
+    }
+    toast.success(`Invite sent to ${res.data.email}`);
+  }
+
   return (
     <>
       <PageHeader
         title="Workspace"
         description="Projects, folders, documents, saved prompts, team, and version history."
         actions={
-          <Button onClick={() => { setTab("projects"); setCreating((v) => !v); }}>
-            <Plus className="size-4" /> New project
-          </Button>
+          canCreate ? (
+            <Button onClick={() => { setTab("projects"); setCreating((v) => !v); }}>
+              <Plus className="size-4" /> New project
+            </Button>
+          ) : (
+            <Badge variant="muted">View-only access</Badge>
+          )
         }
       />
       <div className="p-6">
@@ -135,7 +154,7 @@ export function WorkspaceClient({
                 icon={FolderKanban}
                 title="No projects yet"
                 description="Create your first project to organize documents, folders, and brand assets."
-                action={<Button onClick={() => setCreating(true)}><Plus className="size-4" /> New project</Button>}
+                action={canCreate ? <Button onClick={() => setCreating(true)}><Plus className="size-4" /> New project</Button> : undefined}
               />
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -199,7 +218,11 @@ export function WorkspaceClient({
             <Card>
               <CardHeader className="flex-row items-center justify-between">
                 <CardTitle className="flex items-center gap-2"><Users className="size-4" /> Team members</CardTitle>
-                <Button size="sm" variant="outline" onClick={() => toast.success("Invite sent")}><Plus className="size-4" /> Invite</Button>
+                {canManageTeam ? (
+                  <Button size="sm" variant="outline" onClick={inviteFlow}><Plus className="size-4" /> Invite</Button>
+                ) : (
+                  <Badge variant="muted">Admin only</Badge>
+                )}
               </CardHeader>
               <CardContent className="divide-y divide-[var(--color-border)] p-0">
                 {TEAM.map((m) => (

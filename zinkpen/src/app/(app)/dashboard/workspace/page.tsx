@@ -5,10 +5,21 @@ export const dynamic = "force-dynamic";
 import { getTenant } from "@/lib/data/tenant";
 import { listProjects } from "@/lib/data/projects";
 import { listDocuments } from "@/lib/data/documents";
+import { canCreateContent, canManageTeam } from "@/lib/auth/roles";
 import { WorkspaceClient } from "./workspace-client";
 
 export default async function WorkspacePage() {
-  const { orgId } = await getTenant();
-  const [projects, documents] = await Promise.all([listProjects(orgId), listDocuments(orgId)]);
-  return <WorkspaceClient initialProjects={projects} initialDocuments={documents} />;
+  const tenant = await getTenant();
+  const [projects, documents] = await Promise.all([
+    listProjects(tenant.orgId),
+    listDocuments(tenant.orgId),
+  ]);
+  return (
+    <WorkspaceClient
+      initialProjects={projects}
+      initialDocuments={documents}
+      canCreate={canCreateContent(tenant.role)}
+      canManageTeam={canManageTeam(tenant.role)}
+    />
+  );
 }

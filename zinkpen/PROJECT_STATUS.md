@@ -10,8 +10,8 @@
 | **Build status** | ✅ `npm run build` + `npm run typecheck` pass · 29 routes compiled · APIs smoke-tested |
 | **Runtime mode** | **Demo mode** — fully functional with zero secrets; upgrades to live (Postgres/auth/billing) automatically when env is present |
 | **Persistence** | ✅ Prisma data layer wired with demo fallback (documents, projects, brand voices, generations, usage, subscriptions) |
-| **Access control** | ✅ Auth-gated dashboard (Supabase) + plan-based usage-limit enforcement on AI endpoints + Stripe customer portal |
-| **Last updated** | 2026-06-12 (access control & metering milestone) |
+| **Access control** | ✅ Auth-gated dashboard + plan-based usage limits + **role-based access control** (owner/admin/editor/viewer) + Stripe customer portal |
+| **Last updated** | 2026-06-12 (RBAC milestone) |
 
 ---
 
@@ -96,6 +96,17 @@ response. **Do not break this** — it is what makes the whole product explorabl
 - [x] **Usage UI states** — sidebar meter and billing meters show **remaining usage**, a **Limit reached** badge, and an upgrade prompt; progress turns gold near the cap and red at 100%
 - [x] **Stripe customer portal** — `POST /api/stripe/portal` opens a billing-portal session (manage card, invoices, cancel); "Manage payment" button wired; degrades to a clear demo message
 
+### Role-Based Access Control ✅ (this milestone)
+- [x] **Role model** (`src/lib/auth/roles.ts`) — `owner > admin > editor > viewer` with pure predicates: `roleAtLeast`, `canCreateContent` (editor+), `canManageTeam`/`canManageBilling`/`canManageOrg` (admin+), and `evaluateRoleAccess` (the single 401/403 decision)
+- [x] **Tenant carries `role`** — resolved from `Membership.role` (DB) or the demo owner (demo mode)
+- [x] **Reusable server guards** (`src/lib/auth/guard.ts`) — `requireRole(min)` and `requireOrgRole(orgId, min)` (the latter verifies membership in a specific org, defending against `orgId` tampering); `apiRequireRole(min)` returns a ready 401/403 `NextResponse`
+- [x] **Admin-only routes** — `/api/stripe/checkout` and `/api/stripe/portal` require **admin**; the **billing page** renders a server-side `AccessDenied` for non-admins (not just hidden nav)
+- [x] **Content creation gated to editor+** — `guardGeneration` rejects viewers (403) on every `/api/ai/*` endpoint; `createProjectAction` / `saveDocumentAction` / `createBrandVoiceAction` require editor
+- [x] **Org/team actions gated to admin+** — `inviteMemberAction` requires admin (invite *persistence* is still pending — see Remaining)
+- [x] **Server-side enforcement, not just hiding** — every restricted action checks the role in the route/action; client UI additionally disables create/invite controls for insufficient roles (`canCreate` / `canManageTeam` props) and shows "View-only access" / "Admin only" badges
+- [x] **403 UX** — `wasBlocked()` surfaces an "Access restricted" toast on 403; `AccessDenied` page component for restricted routes
+- [x] **Proof** — `npm run test:roles` asserts the full permission matrix **and** the 401/403 decision (viewer/editor denied billing & team; viewer denied content; no-session → 401; insufficient role → 403). Demo owner retains full access (HTTP smoke)
+
 ---
 
 ## 3. Remaining Features 🚧
@@ -107,10 +118,12 @@ response. **Do not break this** — it is what makes the whole product explorabl
 - [x] ~~**Real auth gating**~~ — middleware + layout gate `/dashboard/*` when Supabase is configured (demo stays open)
 - [x] ~~**Usage limit enforcement**~~ — `guardGeneration` returns 402 over quota; client shows upgrade UI
 - [x] ~~**Stripe customer portal**~~ — `POST /api/stripe/portal` + wired "Manage payment" button
-- [ ] **Server actions — remaining CRUD** — update/delete for projects & documents; folders, saved prompts (read+write); team invites
+- [x] ~~**Per-seat / role enforcement**~~ — full RBAC (owner/admin/editor/viewer) enforced server-side on routes & actions
+- [ ] **Server actions — remaining CRUD** — update/delete for projects & documents; folders, saved prompts (read+write)
+- [ ] **Team invite persistence** — `inviteMemberAction` enforces the admin gate but needs an `Invitation` model + email delivery + membership creation
 - [ ] **brand-kit persistence** — `BrandKit` model exists; Visual Generator brand kit is still client-only state
-- [ ] **Per-seat / role enforcement** — `MemberRole` exists; not yet enforced on actions
 - [ ] **Token-accurate metering** — usage is metered by output word count; switch to provider token usage for billing-grade accuracy
+- [ ] **Role management UI** — change a member's role (model + `requireRole("admin")` ready; no UI yet)
 
 ### Medium priority
 - [ ] Document auto-save + real version history (currently mock timeline)
@@ -212,10 +225,16 @@ All under `src/app/api/`. JSON in/out, zod-validated, `runtime = "nodejs"`.
 | `/api/stripe/portal` | POST | — | `{ url }` or `{ demo, message }` |
 | `/api/stripe/webhook` | POST | Stripe event (raw) | `{ received }` |
 
-Every `/api/ai/*` endpoint is **auth- and quota-guarded** (`guardGeneration`): `401`
-when unauthenticated, `402 limit_reached` when over plan quota, otherwise it runs,
-persists a `Generation`, and meters `UsageRecord`(s). Guarding/metering are no-ops in
-demo mode (never blocked).
+Every `/api/ai/*` endpoint is **auth-, role-, and quota-guarded** (`guardGeneration`):
+`401` unauthenticated, `403` for viewers (content needs editor+), `402 limit_reached`
+when over plan quota, otherwise it runs, persists a `Generation`, and meters
+`UsageRecord`(s). The Stripe **checkout** and **portal** routes require **admin**
+(`apiRequireRole("admin")` → 403 otherwise). Guarding/metering are no-ops in demo mode
+(owner, never blocked).
+
+**Role helpers:** `requireRole(min)`, `requireOrgRole(orgId, min)`, `apiRequireRole(min)`,
+`canManageBilling/Team/Org`, `canCreateContent`, `evaluateRoleAccess`. Tested via
+`npm run test:roles`.
 
 **Server actions** (`src/lib/actions.ts`): `createProjectAction`, `createBrandVoiceAction`,
 `saveDocumentAction` — zod-validated, `revalidatePath`, returning `{ ok, data | error }`.
@@ -230,6 +249,8 @@ demo mode (never blocked).
 ```bash
 npm install
 npm run build      # production build (passes)
+npm run typecheck  # tsc --noEmit (passes)
+npm run test:roles # role-matrix + 401/403 decision smoke test (passes)
 npm start          # serve
 npm run dev        # local dev
 ```

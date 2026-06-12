@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStripe, priceIdForPlan } from "@/lib/stripe/server";
-import { getTenant } from "@/lib/data/tenant";
+import { apiRequireRole } from "@/lib/api/guard";
 
 export const runtime = "nodejs";
 
@@ -12,6 +12,11 @@ const schema = z.object({
 export async function POST(req: Request) {
   const parsed = schema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
+
+  // Billing is admin-only.
+  const guard = await apiRequireRole("admin");
+  if ("error" in guard) return guard.error;
+  const tenant = guard.tenant;
 
   const stripe = getStripe();
   const priceId = priceIdForPlan(parsed.data.plan);
@@ -26,7 +31,6 @@ export async function POST(req: Request) {
     });
   }
 
-  const tenant = await getTenant();
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
     line_items: [{ price: priceId, quantity: 1 }],

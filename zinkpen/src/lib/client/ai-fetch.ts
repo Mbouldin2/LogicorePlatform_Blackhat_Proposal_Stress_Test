@@ -27,5 +27,13 @@ export async function wasBlocked(res: Response): Promise<boolean> {
     return true;
   }
 
+  if (res.status === 403) {
+    const data = (await res.json().catch(() => ({}))) as { message?: string };
+    toast.error("Access restricted", {
+      description: data.message ?? "You don't have permission to perform this action.",
+    });
+    return true;
+  }
+
   return false;
 }

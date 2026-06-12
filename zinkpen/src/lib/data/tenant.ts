@@ -3,6 +3,7 @@ import { getPrisma } from "@/lib/db/prisma";
 import { DEMO_ORG_ID } from "@/lib/db/config";
 import { getCurrentUser } from "@/lib/supabase/server";
 import type { PlanId } from "@/lib/constants";
+import type { Role } from "@/lib/auth/roles";
 
 export interface Tenant {
   userId: string;
@@ -10,6 +11,8 @@ export interface Tenant {
   name: string;
   orgId: string;
   plan: PlanId;
+  /** The user's role within the resolved org. */
+  role: Role;
   /** True when running without a database (demo data). */
   demo: boolean;
 }
@@ -36,7 +39,15 @@ export async function getOptionalTenant(): Promise<Tenant | null> {
 
   const prisma = getPrisma();
   if (!prisma) {
-    return { userId: user.id, email: user.email, name: user.name, orgId: DEMO_ORG_ID, plan: user.plan, demo: true };
+    return {
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      orgId: DEMO_ORG_ID,
+      plan: user.plan,
+      role: user.role,
+      demo: true,
+    };
   }
 
   await prisma.user.upsert({
@@ -71,6 +82,7 @@ export async function getOptionalTenant(): Promise<Tenant | null> {
     name: user.name,
     orgId: membership!.orgId,
     plan: membership!.org.plan as PlanId,
+    role: membership!.role as Role,
     demo: false,
   };
 }
