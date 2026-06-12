@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   const guard = await guardGeneration("words");
   if ("error" in guard) return guard.error;
 
-  const result = await humanizeText(parsed.data);
-  await recordGeneration({ feature: "humanizer", prompt: parsed.data.text, output: result.text });
+  const { meta, ...result } = await humanizeText(parsed.data);
+  await recordGeneration({ feature: "humanizer", prompt: parsed.data.text, output: result.text, usage: meta });
   return NextResponse.json(result);
 }

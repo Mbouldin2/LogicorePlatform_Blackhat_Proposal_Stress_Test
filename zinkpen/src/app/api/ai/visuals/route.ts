@@ -21,8 +21,8 @@ export async function POST(req: Request) {
   const guard = await guardGeneration("images");
   if ("error" in guard) return guard.error;
 
-  const result = await generateVisualPlan(parsed.data);
+  const { meta, ...result } = await generateVisualPlan(parsed.data);
   const text = [result.caption, ...result.slides.map((s) => `${s.headline} ${s.body}`)].join(" ");
-  await recordGeneration({ feature: "visuals", prompt: parsed.data.topic, output: text, images: result.slides.length });
+  await recordGeneration({ feature: "visuals", prompt: parsed.data.topic, output: text, images: result.slides.length, usage: meta });
   return NextResponse.json(result);
 }

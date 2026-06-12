@@ -20,7 +20,7 @@ export async function POST(req: Request) {
   const guard = await guardGeneration("words");
   if ("error" in guard) return guard.error;
 
-  const text = await generateProposal(parsed.data);
-  await recordGeneration({ feature: "proposal", prompt: `${parsed.data.template}: ${parsed.data.topic}`, output: text });
+  const { text, meta } = await generateProposal(parsed.data);
+  await recordGeneration({ feature: "proposal", prompt: `${parsed.data.template}: ${parsed.data.topic}`, output: text, usage: meta });
   return NextResponse.json({ text });
 }

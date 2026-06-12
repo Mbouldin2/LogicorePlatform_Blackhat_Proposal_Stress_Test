@@ -13,7 +13,8 @@
 | **Access control** | ✅ Auth-gated dashboard + plan-based usage limits + **role-based access control** (owner/admin/editor/viewer) + Stripe customer portal |
 | **CRUD** | ✅ Create/update/delete for Projects, Documents, Brand Voices — org-scoped, role-gated, with delete confirmation |
 | **Brand kits** | ✅ Persisted brand kits (palette + fonts + logo) in the Visual Generator — save / apply / delete |
-| **Last updated** | 2026-06-12 (BrandKit persistence milestone) |
+| **Metering** | ✅ Token-accurate usage + cost (input/output/total tokens, provider, model, est. cost) per generation; org & per-user cost on billing |
+| **Last updated** | 2026-06-12 (token-accurate metering milestone) |
 
 ---
 
@@ -124,6 +125,16 @@ response. **Do not break this** — it is what makes the whole product explorabl
 - [x] **Seed** — two starter brand kits (Executive Navy, Tech Violet)
 - [x] Logo persisted as a data URL on `BrandKit.logoUrl` (note: production should move large logos to object storage)
 
+### Token-Accurate Metering ✅ (this milestone)
+- [x] **Provider token capture** — `complete()` parses real usage from each provider (Anthropic `input/output_tokens`, OpenAI `prompt/completion_tokens`, Gemini `usageMetadata`) into a typed `TokenUsage`; demo estimates from text length (~4 chars/token)
+- [x] **Fail-open** — if a provider omits usage, `complete()` backfills an estimate so metering/cost never silently drop to zero (flagged `estimated: true`)
+- [x] **Cost model** (`src/lib/ai/pricing.ts`) — per-model USD/1M-token prices with prefix-matching and a conservative default for unknown models; `computeCostUsd()` returns the per-request estimate
+- [x] **Per-generation fields** — `Generation` now stores `provider`, `model`, `inputTokens`, `outputTokens`, `totalTokens`, and `costUsd`; high-level AI functions return a `meta` object the routes pass to `recordGeneration` (and strip from the client response)
+- [x] **Existing word/image quota unchanged** — `UsageRecord` still meters words/images and drives plan limits exactly as before
+- [x] **Cost aggregation** (`getCostSummary`) — org-level and current-user cost for the cycle, plus total tokens and request count; fails open to a plausible demo figure with no DB
+- [x] **Billing display (admin-only)** — "Estimated AI cost this cycle" with your-usage / tokens / requests breakdown; no redesign elsewhere
+- [x] **Seed + tests** — seed writes token/cost on generations; `npm run test:metering` proves the cost math (per-model pricing, defaults, demo rate, fail-open)
+
 ---
 
 ## 3. Remaining Features 🚧
@@ -140,8 +151,10 @@ response. **Do not break this** — it is what makes the whole product explorabl
 - [ ] **Folders & saved prompts CRUD** — models exist; not yet wired (read or write)
 - [ ] **Team invite persistence** — `inviteMemberAction` enforces the admin gate but needs an `Invitation` model + email delivery + membership creation
 - [x] ~~**BrandKit persistence**~~ — save/apply/delete brand kits in the Visual Generator (org-scoped, role-gated)
-- [ ] **Token-accurate metering** — usage is metered by output word count; switch to provider token usage for billing-grade accuracy
+- [x] ~~**Token-accurate metering**~~ — real provider tokens + per-request cost stored on every generation; org/user cost on billing
 - [ ] **Logo object storage** — brand-kit logos are stored as data URLs; move to Supabase Storage / S3 for production
+- [ ] **Token-based quotas / hard cost caps** — quotas are still word/image based; optionally add token or spend caps per plan
+- [ ] **Cost analytics over time** — per-day spend chart + per-feature cost breakdown (data is captured; charts not yet added)
 - [ ] **Role management UI** — change a member's role (model + `requireRole("admin")` ready; no UI yet)
 
 ### Medium priority
@@ -180,7 +193,7 @@ PostgreSQL via Prisma. **Wired into runtime** through `src/lib/data/` (with demo
 | `BrandVoice` | Reusable voice profile | `traits[]`, `sampleText` |
 | `BrandKit` | Visual brand assets | `colors[]`, `fontHeading`, `fontBody`, `logoUrl` |
 | `SavedPrompt` | Reusable prompt | `title`, `body` |
-| `Generation` | AI output ledger | `feature`, `prompt`, `output`, `provider`, `model`, `words`; indexed `[orgId, createdAt]` |
+| `Generation` | AI output + cost ledger | `feature`, `prompt`, `output`, `provider`, `model`, `words`, `inputTokens`, `outputTokens`, `totalTokens`, `costUsd`; indexed `[orgId, createdAt]` |
 | `UsageRecord` | Metering ledger | `kind` (words/images), `amount`, `feature`; indexed `[orgId, createdAt]` |
 
 Setup: `npm run db:generate && npm run db:push && npm run db:seed`
@@ -272,6 +285,7 @@ npm install
 npm run build      # production build (passes)
 npm run typecheck  # tsc --noEmit (passes)
 npm run test:roles # role-matrix + 401/403 decision smoke test (passes)
+npm run test:metering # token-cost math smoke test (passes)
 npm start          # serve
 npm run dev        # local dev
 ```

@@ -9,14 +9,23 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { PLANS, type PlanId } from "@/lib/constants";
 import type { UsageSnapshot } from "@/types";
+import type { CostSummary } from "@/lib/data/usage";
 import { formatNumber, cn } from "@/lib/utils";
+
+/** Compact USD that stays meaningful for sub-cent amounts. */
+function fmtUsd(n: number): string {
+  if (n > 0 && n < 0.01) return "<$0.01";
+  return `$${n.toFixed(2)}`;
+}
 
 export function BillingClient({
   usage,
   currentPlan,
+  cost,
 }: {
   usage: UsageSnapshot;
   currentPlan: PlanId;
+  cost: CostSummary;
 }) {
   const [loading, setLoading] = useState<PlanId | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
@@ -97,6 +106,31 @@ export function BillingClient({
                   </div>
                 );
               })}
+
+              {/* Token-based cost summary */}
+              <div className="border-t border-[var(--color-border)] pt-4">
+                <div className="mb-2 flex items-center justify-between text-sm">
+                  <span className="font-medium">Estimated AI cost this cycle</span>
+                  <span className="font-semibold">{fmtUsd(cost.orgCostUsd)}</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                  <div className="rounded-[var(--radius-sm)] bg-[var(--color-canvas)] p-2">
+                    <div className="font-semibold text-[var(--color-foreground)]">{fmtUsd(cost.userCostUsd)}</div>
+                    <div className="text-[var(--color-muted-foreground)]">your usage</div>
+                  </div>
+                  <div className="rounded-[var(--radius-sm)] bg-[var(--color-canvas)] p-2">
+                    <div className="font-semibold text-[var(--color-foreground)]">{formatNumber(cost.totalTokens)}</div>
+                    <div className="text-[var(--color-muted-foreground)]">tokens</div>
+                  </div>
+                  <div className="rounded-[var(--radius-sm)] bg-[var(--color-canvas)] p-2">
+                    <div className="font-semibold text-[var(--color-foreground)]">{formatNumber(cost.requests)}</div>
+                    <div className="text-[var(--color-muted-foreground)]">requests</div>
+                  </div>
+                </div>
+                <p className="mt-2 text-[11px] text-[var(--color-muted-foreground)]">
+                  Estimated from provider token usage (input + output). Demo figures are illustrative.
+                </p>
+              </div>
             </CardContent>
           </Card>
 

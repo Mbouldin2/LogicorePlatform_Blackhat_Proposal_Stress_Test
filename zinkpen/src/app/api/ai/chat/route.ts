@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { complete } from "@/lib/ai/providers";
+import { complete, metaFromResult } from "@/lib/ai/providers";
 import { recordGeneration } from "@/lib/data/generations";
 import { guardGeneration } from "@/lib/api/guard";
 
@@ -33,8 +33,7 @@ export async function POST(req: Request) {
     feature: "chat",
     prompt: lastUser?.content ?? "",
     output: result.text,
-    provider: result.provider,
-    model: result.model,
+    usage: metaFromResult(result),
   });
   return NextResponse.json({ text: result.text, provider: result.provider });
 }

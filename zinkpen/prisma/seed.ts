@@ -98,8 +98,10 @@ async function main() {
 
   // Usage + generations across the last 14 days
   const features = ["studio", "proposal", "humanizer", "visuals", "research", "grammar"];
+  // Demo provider rate (USD per 1M tokens) for seeded cost figures.
+  const cost = (input: number, output: number) => (input / 1_000_000) * 2.5 + (output / 1_000_000) * 10;
   const usage: { orgId: string; kind: string; amount: number; feature: string; createdAt: Date }[] = [];
-  const generations: { orgId: string; authorId: string; feature: string; prompt: string; output: string; provider: string; words: number; createdAt: Date }[] = [];
+  const generations: { orgId: string; authorId: string; feature: string; prompt: string; output: string; provider: string; words: number; inputTokens: number; outputTokens: number; totalTokens: number; costUsd: number; createdAt: Date }[] = [];
   for (let day = 13; day >= 0; day--) {
     const date = new Date();
     date.setDate(date.getDate() - day);
@@ -107,6 +109,8 @@ async function main() {
     for (let i = 0; i < gensToday; i++) {
       const feature = features[Math.floor(Math.random() * features.length)];
       const words = 200 + Math.floor(Math.random() * 1200);
+      const outputTokens = Math.round(words * 1.33);
+      const inputTokens = Math.round(outputTokens * 0.4);
       usage.push({ orgId, kind: "words", amount: words, feature, createdAt: date });
       if (feature === "visuals") usage.push({ orgId, kind: "images", amount: 5, feature, createdAt: date });
       generations.push({
@@ -117,6 +121,10 @@ async function main() {
         output: `Seed ${feature} output (${words} words).`,
         provider: "demo",
         words,
+        inputTokens,
+        outputTokens,
+        totalTokens: inputTokens + outputTokens,
+        costUsd: Number(cost(inputTokens, outputTokens).toFixed(6)),
         createdAt: date,
       });
     }

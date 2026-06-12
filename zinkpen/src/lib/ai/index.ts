@@ -1,5 +1,5 @@
 import "server-only";
-import { complete, availableProviders } from "./providers";
+import { complete, availableProviders, metaFromResult, demoMeta, type GenMeta } from "./providers";
 import { seededRandom, clamp, countWords } from "@/lib/utils";
 import type {
   GrammarIssue,
@@ -22,7 +22,7 @@ export async function generateContent(params: {
   keywords?: string;
   brandVoice?: string;
   length?: "short" | "medium" | "long";
-}): Promise<string> {
+}): Promise<{ text: string; meta: GenMeta }> {
   const { template, topic, tone, audience, keywords, brandVoice, length } = params;
   if (isLive()) {
     const system = [
@@ -51,9 +51,10 @@ export async function generateContent(params: {
         },
       ],
     });
-    return res.text;
+    return { text: res.text, meta: metaFromResult(res) };
   }
-  return demoArticle(params);
+  const text = demoArticle(params);
+  return { text, meta: demoMeta(`${template} ${topic} ${tone ?? ""} ${audience ?? ""}`, text) };
 }
 
 function demoArticle(p: {
@@ -106,11 +107,12 @@ ${title} rewards organizations that treat it as a system. Build the system, and 
 export async function humanizeText(params: {
   text: string;
   creativity: number; // 0-100
-}): Promise<HumanizeResult> {
+}): Promise<HumanizeResult & { meta: GenMeta }> {
   const { text, creativity } = params;
   const beforeRisk = clamp(72 + Math.round(seededRandom(text) * 22), 60, 97);
 
   let humanized = text;
+  let meta: GenMeta;
   if (isLive()) {
     const res = await complete({
       system:
@@ -120,14 +122,16 @@ export async function humanizeText(params: {
       messages: [{ role: "user", content: `Creativity level: ${creativity}/100.\n\nRewrite:\n${text}` }],
     });
     humanized = res.text.trim() || text;
+    meta = metaFromResult(res);
   } else {
     humanized = demoHumanize(text, creativity);
+    meta = demoMeta(text, humanized);
   }
 
   const afterRisk = clamp(beforeRisk - 45 - Math.round((creativity / 100) * 20), 3, 40);
   const humanizationScore = clamp(100 - afterRisk + Math.round((creativity / 100) * 5), 55, 99);
   const meaningPreserved = clamp(99 - Math.round((creativity / 100) * 14), 80, 99);
-  return { text: humanized, aiRiskBefore: beforeRisk, aiRiskAfter: afterRisk, humanizationScore, meaningPreserved };
+  return { text: humanized, aiRiskBefore: beforeRisk, aiRiskAfter: afterRisk, humanizationScore, meaningPreserved, meta };
 }
 
 function demoHumanize(text: string, creativity: number): string {
@@ -158,6 +162,7 @@ export async function checkGrammar(text: string): Promise<{
   issues: GrammarIssue[];
   report: ReadabilityReport;
   corrected: string;
+  meta: GenMeta;
 }> {
   const report = readability(text);
   if (isLive()) {
@@ -173,12 +178,13 @@ export async function checkGrammar(text: string): Promise<{
       const issues: GrammarIssue[] = (parsed.issues ?? []).map(
         (i: Partial<GrammarIssue>, idx: number) => ({ id: `g${idx}`, ...i }),
       );
-      return { issues, report, corrected: parsed.corrected ?? text };
+      return { issues, report, corrected: parsed.corrected ?? text, meta: metaFromResult(res) };
     } catch {
       /* fall through to demo */
     }
   }
-  return { ...demoGrammar(text), report };
+  const dg = demoGrammar(text);
+  return { ...dg, report, meta: demoMeta(text, dg.corrected) };
 }
 
 function demoGrammar(text: string): { issues: GrammarIssue[]; corrected: string } {
@@ -240,6 +246,7 @@ export function readability(text: string): ReadabilityReport {
 export async function research(params: { query: string; depth?: "brief" | "deep" }): Promise<{
   brief: string;
   citations: Citation[];
+  meta: GenMeta;
 }> {
   if (isLive()) {
     const res = await complete({
@@ -248,9 +255,10 @@ export async function research(params: { query: string; depth?: "brief" | "deep"
       maxTokens: 1800,
       messages: [{ role: "user", content: `Research brief on: ${params.query}` }],
     });
-    return { brief: res.text, citations: demoCitations(params.query) };
+    return { brief: res.text, citations: demoCitations(params.query), meta: metaFromResult(res) };
   }
-  return { brief: demoBrief(params.query), citations: demoCitations(params.query) };
+  const brief = demoBrief(params.query);
+  return { brief, citations: demoCitations(params.query), meta: demoMeta(params.query, brief) };
 }
 
 function demoBrief(q: string): string {
@@ -297,7 +305,7 @@ export async function generateProposal(params: {
   org: string;
   topic: string;
   details?: string;
-}): Promise<string> {
+}): Promise<{ text: string; meta: GenMeta }> {
   if (isLive()) {
     const res = await complete({
       system:
@@ -310,9 +318,10 @@ export async function generateProposal(params: {
         },
       ],
     });
-    return res.text;
+    return { text: res.text, meta: metaFromResult(res) };
   }
-  return demoProposal(params);
+  const text = demoProposal(params);
+  return { text, meta: demoMeta(`${params.template} ${params.org} ${params.topic} ${params.details ?? ""}`, text) };
 }
 
 function demoProposal(p: { template: string; org: string; topic: string }): string {
@@ -353,7 +362,7 @@ export async function generateVisualPlan(params: {
   contentType: string;
   tone: string;
   audience: string;
-}): Promise<{ slides: CarouselSlide[]; caption: string; hashtags: string[] }> {
+}): Promise<{ slides: CarouselSlide[]; caption: string; hashtags: string[]; meta: GenMeta }> {
   if (isLive()) {
     const res = await complete({
       system:
@@ -376,12 +385,13 @@ export async function generateVisualPlan(params: {
         imageConcept: s.imageConcept ?? "",
         imagePrompt: s.imagePrompt ?? "",
       }));
-      return { slides, caption: parsed.caption ?? "", hashtags: parsed.hashtags ?? [] };
+      return { slides, caption: parsed.caption ?? "", hashtags: parsed.hashtags ?? [], meta: metaFromResult(res) };
     } catch {
       /* fall through */
     }
   }
-  return demoVisualPlan(params);
+  const plan = demoVisualPlan(params);
+  return { ...plan, meta: demoMeta(`${params.topic} ${params.platform} ${params.tone}`, plan.caption) };
 }
 
 function demoVisualPlan(p: {

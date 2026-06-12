@@ -10,6 +10,7 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test:roles": "tsx scripts/roles.smoke.ts",
+    "test:metering": "tsx scripts/metering.smoke.ts",
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",

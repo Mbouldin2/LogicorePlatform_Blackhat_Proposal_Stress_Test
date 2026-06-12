@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   const guard = await guardGeneration("words");
   if ("error" in guard) return guard.error;
 
-  const result = await research(parsed.data);
-  await recordGeneration({ feature: "research", prompt: parsed.data.query, output: result.brief });
+  const { meta, ...result } = await research(parsed.data);
+  await recordGeneration({ feature: "research", prompt: parsed.data.query, output: result.brief, usage: meta });
   return NextResponse.json(result);
 }

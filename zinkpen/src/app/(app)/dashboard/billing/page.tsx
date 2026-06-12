@@ -3,7 +3,7 @@
 export const dynamic = "force-dynamic";
 
 import { getTenant } from "@/lib/data/tenant";
-import { getUsageSnapshot } from "@/lib/data/usage";
+import { getUsageSnapshot, getCostSummary } from "@/lib/data/usage";
 import { canManageBilling } from "@/lib/auth/roles";
 import { AccessDenied } from "@/components/dashboard/access-denied";
 import { BillingClient } from "./billing-client";
@@ -20,6 +20,9 @@ export default async function BillingPage() {
       />
     );
   }
-  const usage = await getUsageSnapshot(tenant.orgId, tenant.plan);
-  return <BillingClient usage={usage} currentPlan={tenant.plan} />;
+  const [usage, cost] = await Promise.all([
+    getUsageSnapshot(tenant.orgId, tenant.plan),
+    getCostSummary(tenant.orgId, tenant.userId),
+  ]);
+  return <BillingClient usage={usage} currentPlan={tenant.plan} cost={cost} />;
 }

@@ -1,5 +1,6 @@
 import "server-only";
 import type { AIMessage, AIProvider } from "@/types";
+import { computeCostUsd } from "./pricing";
 
 /* =============================================================================
    Provider router — talks to OpenAI / Anthropic / Gemini over REST (no SDKs).
@@ -19,10 +20,74 @@ export interface CompletionOptions {
   json?: boolean;
 }
 
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  /** True when the numbers came from the provider; false when estimated. */
+  estimated: boolean;
+}
+
 export interface CompletionResult {
   text: string;
   provider: AIProvider;
   model: string;
+  usage: TokenUsage;
+}
+
+/** Rough token estimate (~4 chars/token) — used as a fail-open fallback when a
+ *  provider doesn't return usage metadata, and for demo mode. */
+export function estimateTokens(text: string): number {
+  return Math.max(0, Math.ceil((text?.length ?? 0) / 4));
+}
+
+function estimateUsage(opts: CompletionOptions, output: string): TokenUsage {
+  const inputText = (opts.system ?? "") + opts.messages.map((m) => m.content).join("\n");
+  const inputTokens = estimateTokens(inputText);
+  const outputTokens = estimateTokens(output);
+  return { inputTokens, outputTokens, totalTokens: inputTokens + outputTokens, estimated: true };
+}
+
+/** Metering metadata attached to every generation: provider, model, token
+ *  usage, and the estimated cost in USD. */
+export interface GenMeta {
+  provider: AIProvider;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  costUsd: number;
+  estimated: boolean;
+}
+
+export function metaFromResult(res: CompletionResult): GenMeta {
+  const u = res.usage;
+  return {
+    provider: res.provider,
+    model: res.model,
+    inputTokens: u.inputTokens,
+    outputTokens: u.outputTokens,
+    totalTokens: u.totalTokens,
+    costUsd: computeCostUsd(u.inputTokens, u.outputTokens, res.model, res.provider),
+    estimated: u.estimated,
+  };
+}
+
+/** Metadata for demo-only helpers that synthesize content without calling a
+ *  provider — tokens are estimated from text length and priced at a nominal
+ *  demo rate so the cost surfaces stay alive. */
+export function demoMeta(inputText: string, outputText: string): GenMeta {
+  const inputTokens = estimateTokens(inputText);
+  const outputTokens = estimateTokens(outputText);
+  return {
+    provider: "demo",
+    model: "zinkpen-demo",
+    inputTokens,
+    outputTokens,
+    totalTokens: inputTokens + outputTokens,
+    costUsd: computeCostUsd(inputTokens, outputTokens, "zinkpen-demo", "demo"),
+    estimated: true,
+  };
 }
 
 export function availableProviders(): AIProvider[] {
@@ -45,16 +110,26 @@ export function selectProvider(preferred?: AIProvider): AIProvider {
 export async function complete(opts: CompletionOptions): Promise<CompletionResult> {
   const provider = selectProvider(opts.provider);
   try {
+    let result: CompletionResult;
     switch (provider) {
       case "anthropic":
-        return await anthropicComplete(opts);
+        result = await anthropicComplete(opts);
+        break;
       case "openai":
-        return await openaiComplete(opts);
+        result = await openaiComplete(opts);
+        break;
       case "gemini":
-        return await geminiComplete(opts);
+        result = await geminiComplete(opts);
+        break;
       default:
-        return demoComplete(opts);
+        result = demoComplete(opts);
     }
+    // Fail-open: if the provider omitted usage, estimate it so metering/cost
+    // never silently drops to zero.
+    if (!result.usage || result.usage.totalTokens === 0) {
+      result.usage = estimateUsage(opts, result.text);
+    }
+    return result;
   } catch (err) {
     // Never hard-fail a product surface on a provider hiccup — degrade to demo.
     console.error(`[ai] ${provider} failed, falling back to demo:`, err);
@@ -88,7 +163,14 @@ async function anthropicComplete(opts: CompletionOptions): Promise<CompletionRes
   if (!res.ok) throw new Error(`anthropic ${res.status}: ${await res.text()}`);
   const data = await res.json();
   const text = (data.content ?? []).map((b: { text?: string }) => b.text ?? "").join("");
-  return { text, provider: "anthropic", model };
+  const input = data.usage?.input_tokens ?? 0;
+  const output = data.usage?.output_tokens ?? 0;
+  return {
+    text,
+    provider: "anthropic",
+    model,
+    usage: { inputTokens: input, outputTokens: output, totalTokens: input + output, estimated: false },
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -116,7 +198,15 @@ async function openaiComplete(opts: CompletionOptions): Promise<CompletionResult
   });
   if (!res.ok) throw new Error(`openai ${res.status}: ${await res.text()}`);
   const data = await res.json();
-  return { text: data.choices?.[0]?.message?.content ?? "", provider: "openai", model };
+  const input = data.usage?.prompt_tokens ?? 0;
+  const output = data.usage?.completion_tokens ?? 0;
+  const total = data.usage?.total_tokens ?? input + output;
+  return {
+    text: data.choices?.[0]?.message?.content ?? "",
+    provider: "openai",
+    model,
+    usage: { inputTokens: input, outputTokens: output, totalTokens: total, estimated: false },
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -146,7 +236,15 @@ async function geminiComplete(opts: CompletionOptions): Promise<CompletionResult
   const data = await res.json();
   const text =
     data.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("") ?? "";
-  return { text, provider: "gemini", model };
+  const input = data.usageMetadata?.promptTokenCount ?? 0;
+  const output = data.usageMetadata?.candidatesTokenCount ?? 0;
+  const total = data.usageMetadata?.totalTokenCount ?? input + output;
+  return {
+    text,
+    provider: "gemini",
+    model,
+    usage: { inputTokens: input, outputTokens: output, totalTokens: total, estimated: false },
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -167,5 +265,5 @@ function demoComplete(opts: CompletionOptions): CompletionResult {
     "• Support it with one concrete proof point or number.",
     "• Close with a clear, low-friction call to action.",
   ].join("\n");
-  return { text, provider: "demo", model: "zinkpen-demo" };
+  return { text, provider: "demo", model: "zinkpen-demo", usage: estimateUsage(opts, text) };
 }

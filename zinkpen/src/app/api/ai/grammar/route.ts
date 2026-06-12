@@ -15,7 +15,7 @@ export async function POST(req: Request) {
   const guard = await guardGeneration("words");
   if ("error" in guard) return guard.error;
 
-  const result = await checkGrammar(parsed.data.text);
-  await recordGeneration({ feature: "grammar", prompt: parsed.data.text, output: result.corrected });
+  const { meta, ...result } = await checkGrammar(parsed.data.text);
+  await recordGeneration({ feature: "grammar", prompt: parsed.data.text, output: result.corrected, usage: meta });
   return NextResponse.json(result);
 }

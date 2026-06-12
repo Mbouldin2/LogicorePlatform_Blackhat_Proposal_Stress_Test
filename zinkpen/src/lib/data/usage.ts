@@ -2,7 +2,17 @@ import "server-only";
 import { getPrisma } from "@/lib/db/prisma";
 import { PLANS, type PlanId } from "@/lib/constants";
 import { MOCK_USAGE, MOCK_USAGE_SERIES, MOCK_FEATURE_USAGE } from "@/lib/mock-data";
+import { computeCostUsd } from "@/lib/ai/pricing";
 import type { UsageSnapshot } from "@/types";
+
+export interface CostSummary {
+  /** Estimated AI provider cost for the org this cycle (USD). */
+  orgCostUsd: number;
+  /** Estimated cost attributable to the current user this cycle (USD). */
+  userCostUsd: number;
+  totalTokens: number;
+  requests: number;
+}
 
 const FEATURE_LABELS: Record<string, string> = {
   studio: "Writing Studio",
@@ -91,6 +101,44 @@ export async function getUsageSeries(orgId: string): Promise<{ day: string; word
     series[i].images = buckets[key].images;
   });
   return series;
+}
+
+/** Estimated AI cost summary for the current billing cycle (org + current user).
+ *  Fails open to a plausible demo figure when there's no database so the cost
+ *  surfaces never read $0.00 in demo mode. */
+export async function getCostSummary(orgId: string, userId?: string): Promise<CostSummary> {
+  const prisma = getPrisma();
+  if (!prisma) {
+    // Derive a believable figure from the demo usage snapshot.
+    const outputTokens = Math.round(MOCK_USAGE.wordsUsed * 1.33);
+    const inputTokens = Math.round(outputTokens * 0.4);
+    const cost = computeCostUsd(inputTokens, outputTokens, "zinkpen-demo", "demo");
+    return { orgCostUsd: cost, userCostUsd: cost, totalTokens: inputTokens + outputTokens, requests: MOCK_USAGE.documents };
+  }
+
+  const cycleStart = new Date();
+  cycleStart.setDate(cycleStart.getDate() - 30);
+  try {
+    const [org, user] = await Promise.all([
+      prisma.generation.aggregate({
+        _sum: { costUsd: true, totalTokens: true },
+        _count: { _all: true },
+        where: { orgId, createdAt: { gte: cycleStart } },
+      }),
+      userId
+        ? prisma.generation.aggregate({ _sum: { costUsd: true }, where: { orgId, authorId: userId, createdAt: { gte: cycleStart } } })
+        : Promise.resolve(null),
+    ]);
+    return {
+      orgCostUsd: org._sum.costUsd ?? 0,
+      userCostUsd: user?._sum.costUsd ?? 0,
+      totalTokens: org._sum.totalTokens ?? 0,
+      requests: org._count._all,
+    };
+  } catch (err) {
+    console.error("[usage] cost summary failed:", err);
+    return { orgCostUsd: 0, userCostUsd: 0, totalTokens: 0, requests: 0 };
+  }
 }
 
 /** Generation counts grouped by feature (analytics pie). */
