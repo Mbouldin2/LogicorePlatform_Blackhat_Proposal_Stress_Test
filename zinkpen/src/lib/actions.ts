@@ -5,7 +5,8 @@ import { requireRole } from "@/lib/auth/guard";
 import { createProject, updateProject, deleteProject } from "@/lib/data/projects";
 import { createBrandVoice, updateBrandVoice, deleteBrandVoice } from "@/lib/data/brand-voices";
 import { createDocument, updateDocument, deleteDocument } from "@/lib/data/documents";
-import type { Project, BrandVoice, Doc } from "@/types";
+import { createBrandKit, deleteBrandKit } from "@/lib/data/brand-kits";
+import type { Project, BrandVoice, BrandKit, Doc } from "@/types";
 
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -205,6 +206,48 @@ export async function deleteBrandVoiceAction(input: unknown): Promise<ActionResu
   } catch (err) {
     console.error("[deleteBrandVoiceAction]", err);
     return { ok: false, error: "Could not delete the voice profile. Please try again." };
+  }
+}
+
+// --- Brand kits ------------------------------------------------------------
+const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/);
+const brandKitSchema = z.object({
+  name: z.string().min(1, "Kit name is required").max(80),
+  colors: z.array(hexColor).min(1).max(8),
+  fontHeading: z.string().min(1).max(60),
+  fontBody: z.string().min(1).max(60),
+  // Accept a data URL or http(s) URL; cap size to keep payloads sane.
+  logoUrl: z.string().max(2_000_000).nullable().optional(),
+});
+
+export async function saveBrandKitAction(input: unknown): Promise<ActionResult<BrandKit>> {
+  const parsed = brandKitSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  const guard = await requireRole("editor");
+  if (!guard.ok) return { ok: false, error: guard.message };
+  try {
+    const kit = await createBrandKit(guard.tenant.orgId, parsed.data);
+    revalidatePath("/dashboard/visuals");
+    return { ok: true, data: kit };
+  } catch (err) {
+    console.error("[saveBrandKitAction]", err);
+    return { ok: false, error: "Could not save the brand kit. Please try again." };
+  }
+}
+
+export async function deleteBrandKitAction(input: unknown): Promise<ActionResult<{ id: string }>> {
+  const parsed = z.object({ id: z.string().min(1) }).safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Invalid input" };
+  const guard = await requireRole("admin");
+  if (!guard.ok) return { ok: false, error: guard.message };
+  try {
+    const found = await deleteBrandKit(guard.tenant.orgId, parsed.data.id);
+    if (!found) return { ok: false, error: NOT_FOUND };
+    revalidatePath("/dashboard/visuals");
+    return { ok: true, data: { id: parsed.data.id } };
+  } catch (err) {
+    console.error("[deleteBrandKitAction]", err);
+    return { ok: false, error: "Could not delete the brand kit. Please try again." };
   }
 }
 

@@ -48,6 +48,16 @@ export interface BrandVoice {
   createdAt: string;
 }
 
+export interface BrandKit {
+  id: string;
+  name: string;
+  colors: string[];
+  fontHeading: string;
+  fontBody: string;
+  logoUrl?: string | null;
+  createdAt: string;
+}
+
 export interface GrammarIssue {
   id: string;
   type: "spelling" | "grammar" | "punctuation" | "clarity" | "style";

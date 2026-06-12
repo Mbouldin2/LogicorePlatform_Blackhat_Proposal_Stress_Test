@@ -11,8 +11,9 @@
 | **Runtime mode** | **Demo mode** — fully functional with zero secrets; upgrades to live (Postgres/auth/billing) automatically when env is present |
 | **Persistence** | ✅ Prisma data layer wired with demo fallback (documents, projects, brand voices, generations, usage, subscriptions) |
 | **Access control** | ✅ Auth-gated dashboard + plan-based usage limits + **role-based access control** (owner/admin/editor/viewer) + Stripe customer portal |
-| **CRUD** | ✅ Create/update/delete for Projects, Documents, and Brand Voices — org-scoped, role-gated, with delete confirmation |
-| **Last updated** | 2026-06-12 (CRUD update/delete milestone) |
+| **CRUD** | ✅ Create/update/delete for Projects, Documents, Brand Voices — org-scoped, role-gated, with delete confirmation |
+| **Brand kits** | ✅ Persisted brand kits (palette + fonts + logo) in the Visual Generator — save / apply / delete |
+| **Last updated** | 2026-06-12 (BrandKit persistence milestone) |
 
 ---
 
@@ -115,6 +116,14 @@ response. **Do not break this** — it is what makes the whole product explorabl
 - [x] **Delete confirmation** — reusable `ConfirmDialog` (dependency-free modal) guards every destructive action; project delete warns that its documents cascade
 - [x] **UI (no redesign)** — Projects: inline edit (reuses the create form) + Delete; Documents: inline row edit (title + status) + Delete; Brand Voices: inline card edit (name + description) + Delete. Edit controls shown to editor+, Delete controls to admin+; optimistic state updates; toast on error; **empty states** for projects, documents, and voices
 
+### BrandKit Persistence ✅ (this milestone)
+- [x] **Data layer** (`src/lib/data/brand-kits.ts`) — `listBrandKits` / `createBrandKit` / `updateBrandKit` / `deleteBrandKit`, org-scoped (`updateMany`/`deleteMany` on `{ id, orgId }`), demo-safe (list returns `[]`, writes echo a synthesized record)
+- [x] **Server actions** — `saveBrandKitAction` (editor+) and `deleteBrandKitAction` (admin+), zod-validated (hex-color palette, logo size cap), `revalidatePath`
+- [x] **Visual Generator wired** — page split into a server wrapper (`page.tsx`, loads kits + role) and `visuals-client.tsx`. Brand kit section gains a **Save current** button (persists palette + font pairing + logo), a **Saved kits** chip row to **apply** a kit (restores colors, fonts, logo), and per-kit **delete** (admin+) guarded by `ConfirmDialog`
+- [x] **Role gating + states** — Save shown to editor+, delete to admin+; empty hint when no kits; optimistic updates; demo keeps kits in client state
+- [x] **Seed** — two starter brand kits (Executive Navy, Tech Violet)
+- [x] Logo persisted as a data URL on `BrandKit.logoUrl` (note: production should move large logos to object storage)
+
 ---
 
 ## 3. Remaining Features 🚧
@@ -130,8 +139,9 @@ response. **Do not break this** — it is what makes the whole product explorabl
 - [x] ~~**CRUD update/delete**~~ — projects, documents, brand voices (org-scoped, role-gated, confirm dialog)
 - [ ] **Folders & saved prompts CRUD** — models exist; not yet wired (read or write)
 - [ ] **Team invite persistence** — `inviteMemberAction` enforces the admin gate but needs an `Invitation` model + email delivery + membership creation
-- [ ] **brand-kit persistence** — `BrandKit` model exists; Visual Generator brand kit is still client-only state
+- [x] ~~**BrandKit persistence**~~ — save/apply/delete brand kits in the Visual Generator (org-scoped, role-gated)
 - [ ] **Token-accurate metering** — usage is metered by output word count; switch to provider token usage for billing-grade accuracy
+- [ ] **Logo object storage** — brand-kit logos are stored as data URLs; move to Supabase Storage / S3 for production
 - [ ] **Role management UI** — change a member's role (model + `requireRole("admin")` ready; no UI yet)
 
 ### Medium priority
@@ -175,8 +185,8 @@ PostgreSQL via Prisma. **Wired into runtime** through `src/lib/data/` (with demo
 
 Setup: `npm run db:generate && npm run db:push && npm run db:seed`
 
-**Wired models:** Organization, User, Membership, Project, Document, DocumentVersion (on create), BrandVoice, Generation, UsageRecord.
-**Not yet wired:** Folder, SavedPrompt, BrandKit (defined; UI still uses mock/local state).
+**Wired models:** Organization, User, Membership, Project, Document, DocumentVersion (on create), BrandVoice, BrandKit, Generation, UsageRecord.
+**Not yet wired:** Folder, SavedPrompt (defined; UI still uses mock/local state).
 
 ---
 

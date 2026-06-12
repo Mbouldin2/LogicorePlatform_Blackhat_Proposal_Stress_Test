@@ -42,6 +42,7 @@ async function main() {
   await prisma.document.deleteMany({ where: { project: { orgId } } });
   await prisma.project.deleteMany({ where: { orgId } });
   await prisma.brandVoice.deleteMany({ where: { orgId } });
+  await prisma.brandKit.deleteMany({ where: { orgId } });
 
   // Projects
   const projects = await Promise.all(
@@ -84,6 +85,14 @@ async function main() {
       { orgId, name: "Executive Authority", description: "Confident, concise, board-room ready.", traits: ["Authoritative", "Concise", "Data-driven"], sampleText: "We lead with outcomes and back every claim with evidence." },
       { orgId, name: "GovCon Compliance", description: "Precise, requirement-traceable, formal.", traits: ["Formal", "Precise", "Compliant"], sampleText: "Our approach maps directly to each requirement with full traceability." },
       { orgId, name: "Founder Voice", description: "Warm, direct, story-led.", traits: ["Warm", "Direct", "Story-led"], sampleText: "Here's what we learned the hard way, and what it means for you." },
+    ],
+  });
+
+  // Brand kits
+  await prisma.brandKit.createMany({
+    data: [
+      { orgId, name: "Executive Navy", colors: ["#0B1F3A", "#1E3A8A", "#3B82F6", "#E2E8F0"], fontHeading: "Fraunces", fontBody: "Inter" },
+      { orgId, name: "Tech Violet", colors: ["#1C1A49", "#4A43E0", "#A855F7", "#F3EEFF"], fontHeading: "Space Grotesk", fontBody: "IBM Plex Sans" },
     ],
   });
 
