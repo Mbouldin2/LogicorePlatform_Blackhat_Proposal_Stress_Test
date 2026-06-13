@@ -44,7 +44,10 @@ export async function rateLimit(key: string, opts: RateLimitOptions): Promise<Ra
       : memoryLimit(key, limit, windowSec);
   } catch (err) {
     // Fail open — never block a user because the limiter backend hiccupped.
-    console.error("[ratelimit] backend error, allowing:", err);
+    // Lazy import to keep this module free of server-only deps for tests.
+    void import("@/lib/logger").then(({ captureException }) =>
+      captureException(err, { scope: "ratelimit", key }),
+    );
     return { allowed: true, limit, remaining: limit, retryAfterSec: 0 };
   }
 }

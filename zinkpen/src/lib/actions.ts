@@ -6,6 +6,7 @@ import { createProject, updateProject, deleteProject } from "@/lib/data/projects
 import { createBrandVoice, updateBrandVoice, deleteBrandVoice } from "@/lib/data/brand-voices";
 import { createDocument, updateDocument, deleteDocument } from "@/lib/data/documents";
 import { createBrandKit, deleteBrandKit } from "@/lib/data/brand-kits";
+import { captureException } from "@/lib/logger";
 import type { Project, BrandVoice, BrandKit, Doc } from "@/types";
 
 export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
@@ -28,7 +29,7 @@ export async function createProjectAction(input: unknown): Promise<ActionResult<
     revalidatePath("/dashboard");
     return { ok: true, data: project };
   } catch (err) {
-    console.error("[createProjectAction]", err);
+    void captureException(err, { scope: "createProjectAction" });
     return { ok: false, error: "Could not create the project. Please try again." };
   }
 }
@@ -50,7 +51,7 @@ export async function createBrandVoiceAction(input: unknown): Promise<ActionResu
     revalidatePath("/dashboard/brand-voice");
     return { ok: true, data: voice };
   } catch (err) {
-    console.error("[createBrandVoiceAction]", err);
+    void captureException(err, { scope: "createBrandVoiceAction" });
     return { ok: false, error: "Could not save the voice profile. Please try again." };
   }
 }
@@ -74,7 +75,7 @@ export async function saveDocumentAction(input: unknown): Promise<ActionResult<D
     revalidatePath("/dashboard");
     return { ok: true, data: doc };
   } catch (err) {
-    console.error("[saveDocumentAction]", err);
+    void captureException(err, { scope: "saveDocumentAction" });
     return { ok: false, error: "Could not save the document. Please try again." };
   }
 }
@@ -106,7 +107,7 @@ export async function updateProjectAction(input: unknown): Promise<ActionResult<
     revalidatePath("/dashboard");
     return { ok: true, data: { id } };
   } catch (err) {
-    console.error("[updateProjectAction]", err);
+    void captureException(err, { scope: "updateProjectAction" });
     return { ok: false, error: "Could not update the project. Please try again." };
   }
 }
@@ -123,7 +124,7 @@ export async function deleteProjectAction(input: unknown): Promise<ActionResult<
     revalidatePath("/dashboard");
     return { ok: true, data: { id: parsed.data.id } };
   } catch (err) {
-    console.error("[deleteProjectAction]", err);
+    void captureException(err, { scope: "deleteProjectAction" });
     return { ok: false, error: "Could not delete the project. Please try again." };
   }
 }
@@ -148,7 +149,7 @@ export async function updateDocumentAction(input: unknown): Promise<ActionResult
     revalidatePath("/dashboard");
     return { ok: true, data: { id } };
   } catch (err) {
-    console.error("[updateDocumentAction]", err);
+    void captureException(err, { scope: "updateDocumentAction" });
     return { ok: false, error: "Could not update the document. Please try again." };
   }
 }
@@ -165,7 +166,7 @@ export async function deleteDocumentAction(input: unknown): Promise<ActionResult
     revalidatePath("/dashboard");
     return { ok: true, data: { id: parsed.data.id } };
   } catch (err) {
-    console.error("[deleteDocumentAction]", err);
+    void captureException(err, { scope: "deleteDocumentAction" });
     return { ok: false, error: "Could not delete the document. Please try again." };
   }
 }
@@ -188,7 +189,7 @@ export async function updateBrandVoiceAction(input: unknown): Promise<ActionResu
     revalidatePath("/dashboard/brand-voice");
     return { ok: true, data: { id } };
   } catch (err) {
-    console.error("[updateBrandVoiceAction]", err);
+    void captureException(err, { scope: "updateBrandVoiceAction" });
     return { ok: false, error: "Could not update the voice profile. Please try again." };
   }
 }
@@ -204,7 +205,7 @@ export async function deleteBrandVoiceAction(input: unknown): Promise<ActionResu
     revalidatePath("/dashboard/brand-voice");
     return { ok: true, data: { id: parsed.data.id } };
   } catch (err) {
-    console.error("[deleteBrandVoiceAction]", err);
+    void captureException(err, { scope: "deleteBrandVoiceAction" });
     return { ok: false, error: "Could not delete the voice profile. Please try again." };
   }
 }
@@ -230,7 +231,7 @@ export async function saveBrandKitAction(input: unknown): Promise<ActionResult<B
     revalidatePath("/dashboard/visuals");
     return { ok: true, data: kit };
   } catch (err) {
-    console.error("[saveBrandKitAction]", err);
+    void captureException(err, { scope: "saveBrandKitAction" });
     return { ok: false, error: "Could not save the brand kit. Please try again." };
   }
 }
@@ -246,7 +247,7 @@ export async function deleteBrandKitAction(input: unknown): Promise<ActionResult
     revalidatePath("/dashboard/visuals");
     return { ok: true, data: { id: parsed.data.id } };
   } catch (err) {
-    console.error("[deleteBrandKitAction]", err);
+    void captureException(err, { scope: "deleteBrandKitAction" });
     return { ok: false, error: "Could not delete the brand kit. Please try again." };
   }
 }

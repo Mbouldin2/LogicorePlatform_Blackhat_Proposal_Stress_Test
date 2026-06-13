@@ -12,6 +12,7 @@
     "test:roles": "tsx scripts/roles.smoke.ts",
     "test:metering": "tsx scripts/metering.smoke.ts",
     "test:ratelimit": "tsx scripts/ratelimit.smoke.ts",
+    "test:config": "tsx scripts/config.smoke.ts",
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",

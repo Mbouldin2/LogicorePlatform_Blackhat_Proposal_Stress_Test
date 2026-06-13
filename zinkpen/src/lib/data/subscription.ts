@@ -1,5 +1,6 @@
 import "server-only";
 import { getPrisma } from "@/lib/db/prisma";
+import { captureException } from "@/lib/logger";
 import type { PlanId } from "@/lib/constants";
 
 /** Look up an org's Stripe customer id (for the billing portal). */
@@ -32,6 +33,6 @@ export async function setOrgPlan(
       },
     });
   } catch (err) {
-    console.error("[subscription] setOrgPlan failed:", err);
+    void captureException(err, { scope: "subscription.setOrgPlan", orgId });
   }
 }

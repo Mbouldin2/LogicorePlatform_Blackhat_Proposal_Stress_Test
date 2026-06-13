@@ -3,6 +3,7 @@ import { getPrisma } from "@/lib/db/prisma";
 import { PLANS, type PlanId } from "@/lib/constants";
 import { MOCK_USAGE, MOCK_USAGE_SERIES, MOCK_FEATURE_USAGE } from "@/lib/mock-data";
 import { computeCostUsd } from "@/lib/ai/pricing";
+import { captureException } from "@/lib/logger";
 import type { UsageSnapshot } from "@/types";
 
 export interface CostSummary {
@@ -36,7 +37,7 @@ export async function recordUsage(
   try {
     await prisma.usageRecord.create({ data: { orgId, kind, amount, feature } });
   } catch (err) {
-    console.error("[usage] failed to record:", err);
+    void captureException(err, { scope: "usage.recordUsage" });
   }
 }
 
@@ -136,7 +137,7 @@ export async function getCostSummary(orgId: string, userId?: string): Promise<Co
       requests: org._count._all,
     };
   } catch (err) {
-    console.error("[usage] cost summary failed:", err);
+    void captureException(err, { scope: "usage.getCostSummary" });
     return { orgCostUsd: 0, userCostUsd: 0, totalTokens: 0, requests: 0 };
   }
 }

@@ -1,6 +1,7 @@
 import "server-only";
 import { isDatabaseConfigured } from "@/lib/db/config";
 import { getUsageSnapshot } from "./usage";
+import { captureException } from "@/lib/logger";
 import type { PlanId } from "@/lib/constants";
 
 export interface QuotaCheck {
@@ -27,7 +28,7 @@ export async function checkQuota(
     return { allowed, used, limit, remaining: Math.max(0, limit - used), kind };
   } catch (err) {
     // Fail open — never block a generation because metering hiccupped.
-    console.error("[quota] check failed, allowing:", err);
+    void captureException(err, { scope: "quota.checkQuota" });
     return { allowed: true, used: 0, limit: 0, remaining: 0, kind };
   }
 }

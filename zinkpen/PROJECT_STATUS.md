@@ -15,7 +15,8 @@
 | **Brand kits** | ✅ Persisted brand kits (palette + fonts + logo) in the Visual Generator — save / apply / delete |
 | **Metering** | ✅ Token-accurate usage + cost (input/output/total tokens, provider, model, est. cost) per generation; org & per-user cost on billing |
 | **Abuse protection** | ✅ Rate limiting on AI + billing endpoints (Upstash Redis when configured, in-memory fallback) → `429` + `Retry-After` |
-| **Last updated** | 2026-06-13 (go-live: rate limiting) |
+| **Security & ops** | ✅ Security review clean (no HIGH/MEDIUM); config fail-fast; structured logging + error capture; CI gate (typecheck · 4 smoke tests · build) |
+| **Last updated** | 2026-06-13 (go-live: security review, config guard, logging, CI) |
 
 ---
 
@@ -141,10 +142,11 @@ response. **Do not break this** — it is what makes the whole product explorabl
   - Wired into `guardGeneration` — caps AI calls per org/min (`RATE_LIMIT_AI_PER_MIN`, default 30) ahead of the quota check; Stripe checkout/portal limited to 10/min
   - Returns `429` with a `Retry-After` header + `{ error: "rate_limited", retryAfter }`; client `wasBlocked()` shows a "Slow down" toast
   - Proven: `npm run test:ratelimit` (allow→block, isolation, window reset, disable switch) + HTTP smoke (200×3 then 429 with `Retry-After: 60`)
-- [ ] **Security review** — run `/security-review`; check authz on every mutation, webhook signature/idempotency, input limits
-- [ ] **Error monitoring + logging** — wire Sentry (or equivalent) and structured logs
-- [ ] **CI gate** — GitHub Action running typecheck + build + the smoke tests on PRs
-- [ ] **Live verification** — exercise Supabase auth, Postgres, Stripe checkout→webhook, and one live call per AI provider against real services
+- [x] **Security review** — ran `/security-review` (sub-agent over the full app): **no HIGH/MEDIUM findings**. Verified webhook signature enforcement, org-scoped queries (no IDOR), server-side authz on every mutation, parameterized Prisma (no raw SQL), and escaped HTML sinks (no `dangerouslySetInnerHTML`)
+- [x] **Config fail-fast** — `assertRuntimeConfig()` (`src/lib/env.ts`) + `src/instrumentation.ts` refuse to boot when Supabase auth is enabled without `DATABASE_URL` (would otherwise grant shared demo-owner access); `getOptionalTenant` also fails **closed** per-request. Proven by `npm run test:config`
+- [x] **Error monitoring + logging** — structured JSON logger + `captureException()` (`src/lib/logger.ts`); all best-effort server catches route through it; forwards to `ERROR_WEBHOOK_URL` when set (Slack / Sentry-tunnel / any sink). Drop-in path for `@sentry/nextjs` documented
+- [x] **CI gate** — `.github/workflows/zinkpen-ci.yml` runs install → typecheck → smoke tests (roles/metering/ratelimit/config) → build on PRs + main (paths-filtered to `zinkpen/**`)
+- [ ] **Live verification** — exercise Supabase auth, Postgres, Stripe checkout→webhook, and one live call per AI provider against real services (the last remaining go-live gate)
 
 ---
 
@@ -298,6 +300,7 @@ npm run typecheck  # tsc --noEmit (passes)
 npm run test:roles # role-matrix + 401/403 decision smoke test (passes)
 npm run test:metering # token-cost math smoke test (passes)
 npm run test:ratelimit # rate-limiter smoke test (passes)
+npm run test:config # config fail-fast smoke test (passes)
 npm start          # serve
 npm run dev        # local dev
 ```
@@ -321,6 +324,9 @@ All optional for demo; required per integration to go live.
 **Rate limiting** (optional)
 - `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` (durable limiter; in-memory fallback otherwise)
 - `RATE_LIMIT_AI_PER_MIN` (default 30), `RATE_LIMIT_DISABLED`
+
+**Observability** (optional)
+- `ERROR_WEBHOOK_URL` — forwards `captureException()` errors to an external collector
 
 **App**
 - `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_APP_NAME`

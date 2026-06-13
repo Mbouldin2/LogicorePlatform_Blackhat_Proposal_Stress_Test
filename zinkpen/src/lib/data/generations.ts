@@ -3,6 +3,7 @@ import { getPrisma } from "@/lib/db/prisma";
 import { countWords } from "@/lib/utils";
 import { recordUsage } from "./usage";
 import { getOptionalTenant } from "./tenant";
+import { captureException } from "@/lib/logger";
 
 export type Feature = "studio" | "humanizer" | "grammar" | "research" | "proposal" | "visuals" | "chat";
 
@@ -56,7 +57,7 @@ export async function recordGeneration(params: {
     if (words > 0) await recordUsage(orgId, "words", words, params.feature);
     if (params.images && params.images > 0) await recordUsage(orgId, "images", params.images, params.feature);
   } catch (err) {
-    console.error("[generation] failed to record:", err);
+    void captureException(err, { scope: "generations.recordGeneration", feature: params.feature });
   }
 }
 

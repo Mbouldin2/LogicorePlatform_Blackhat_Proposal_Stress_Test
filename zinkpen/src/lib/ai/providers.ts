@@ -1,6 +1,7 @@
 import "server-only";
 import type { AIMessage, AIProvider } from "@/types";
 import { computeCostUsd } from "./pricing";
+import { captureException } from "@/lib/logger";
 
 /* =============================================================================
    Provider router — talks to OpenAI / Anthropic / Gemini over REST (no SDKs).
@@ -132,7 +133,7 @@ export async function complete(opts: CompletionOptions): Promise<CompletionResul
     return result;
   } catch (err) {
     // Never hard-fail a product surface on a provider hiccup — degrade to demo.
-    console.error(`[ai] ${provider} failed, falling back to demo:`, err);
+    void captureException(err, { scope: "ai.complete", provider });
     return demoComplete(opts);
   }
 }

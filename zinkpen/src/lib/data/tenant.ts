@@ -2,6 +2,7 @@ import "server-only";
 import { getPrisma } from "@/lib/db/prisma";
 import { DEMO_ORG_ID } from "@/lib/db/config";
 import { getCurrentUser } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 import type { PlanId } from "@/lib/constants";
 import type { Role } from "@/lib/auth/roles";
 
@@ -39,6 +40,13 @@ export async function getOptionalTenant(): Promise<Tenant | null> {
 
   const prisma = getPrisma();
   if (!prisma) {
+    // Fail closed: if real auth is configured but the database is not, do NOT
+    // hand a real user the shared demo-owner tenant. This is a misconfiguration.
+    if (isSupabaseConfigured()) {
+      throw new Error(
+        "[zinkpen] Database not configured while authentication is enabled — refusing to grant demo-owner access. Set DATABASE_URL.",
+      );
+    }
     return {
       userId: user.id,
       email: user.email,
