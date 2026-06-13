@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getStripe, priceIdForPlan } from "@/lib/stripe/server";
-import { apiRequireRole } from "@/lib/api/guard";
+import { apiRequireRole, enforceRateLimit } from "@/lib/api/guard";
 
 export const runtime = "nodejs";
 
@@ -17,6 +17,9 @@ export async function POST(req: Request) {
   const guard = await apiRequireRole("admin");
   if ("error" in guard) return guard.error;
   const tenant = guard.tenant;
+
+  const limited = await enforceRateLimit(`stripe:${tenant.orgId}`, { limit: 10, windowSec: 60 });
+  if (limited) return limited;
 
   const stripe = getStripe();
   const priceId = priceIdForPlan(parsed.data.plan);

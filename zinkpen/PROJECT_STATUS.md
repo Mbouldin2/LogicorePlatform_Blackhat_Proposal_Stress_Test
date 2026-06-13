@@ -14,7 +14,8 @@
 | **CRUD** | ✅ Create/update/delete for Projects, Documents, Brand Voices — org-scoped, role-gated, with delete confirmation |
 | **Brand kits** | ✅ Persisted brand kits (palette + fonts + logo) in the Visual Generator — save / apply / delete |
 | **Metering** | ✅ Token-accurate usage + cost (input/output/total tokens, provider, model, est. cost) per generation; org & per-user cost on billing |
-| **Last updated** | 2026-06-12 (token-accurate metering milestone) |
+| **Abuse protection** | ✅ Rate limiting on AI + billing endpoints (Upstash Redis when configured, in-memory fallback) → `429` + `Retry-After` |
+| **Last updated** | 2026-06-13 (go-live: rate limiting) |
 
 ---
 
@@ -134,6 +135,16 @@ response. **Do not break this** — it is what makes the whole product explorabl
 - [x] **Cost aggregation** (`getCostSummary`) — org-level and current-user cost for the cycle, plus total tokens and request count; fails open to a plausible demo figure with no DB
 - [x] **Billing display (admin-only)** — "Estimated AI cost this cycle" with your-usage / tokens / requests breakdown; no redesign elsewhere
 - [x] **Seed + tests** — seed writes token/cost on generations; `npm run test:metering` proves the cost math (per-model pricing, defaults, demo rate, fail-open)
+
+### Go-Live Hardening 🚧 (in progress)
+- [x] **Rate limiting** — pluggable fixed-window limiter (`src/lib/ratelimit/limiter.ts`): Upstash Redis REST when `UPSTASH_REDIS_REST_*` is set (durable across serverless), in-memory per-instance fallback otherwise. **Fails open** on backend error; disable with `RATE_LIMIT_DISABLED=true`
+  - Wired into `guardGeneration` — caps AI calls per org/min (`RATE_LIMIT_AI_PER_MIN`, default 30) ahead of the quota check; Stripe checkout/portal limited to 10/min
+  - Returns `429` with a `Retry-After` header + `{ error: "rate_limited", retryAfter }`; client `wasBlocked()` shows a "Slow down" toast
+  - Proven: `npm run test:ratelimit` (allow→block, isolation, window reset, disable switch) + HTTP smoke (200×3 then 429 with `Retry-After: 60`)
+- [ ] **Security review** — run `/security-review`; check authz on every mutation, webhook signature/idempotency, input limits
+- [ ] **Error monitoring + logging** — wire Sentry (or equivalent) and structured logs
+- [ ] **CI gate** — GitHub Action running typecheck + build + the smoke tests on PRs
+- [ ] **Live verification** — exercise Supabase auth, Postgres, Stripe checkout→webhook, and one live call per AI provider against real services
 
 ---
 
@@ -286,6 +297,7 @@ npm run build      # production build (passes)
 npm run typecheck  # tsc --noEmit (passes)
 npm run test:roles # role-matrix + 401/403 decision smoke test (passes)
 npm run test:metering # token-cost math smoke test (passes)
+npm run test:ratelimit # rate-limiter smoke test (passes)
 npm start          # serve
 npm run dev        # local dev
 ```
@@ -305,6 +317,10 @@ All optional for demo; required per integration to go live.
 **Stripe**
 - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
 - `STRIPE_PRICE_STARTER`, `STRIPE_PRICE_PROFESSIONAL`, `STRIPE_PRICE_EXECUTIVE`, `STRIPE_PRICE_GOVERNMENT`
+
+**Rate limiting** (optional)
+- `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` (durable limiter; in-memory fallback otherwise)
+- `RATE_LIMIT_AI_PER_MIN` (default 30), `RATE_LIMIT_DISABLED`
 
 **App**
 - `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_APP_NAME`

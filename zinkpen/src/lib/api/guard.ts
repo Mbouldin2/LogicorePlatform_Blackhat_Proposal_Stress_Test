@@ -4,9 +4,34 @@ import { getOptionalTenant, type Tenant } from "@/lib/data/tenant";
 import { checkQuota } from "@/lib/data/quota";
 import { requireRole } from "@/lib/auth/guard";
 import { canCreateContent, type Role } from "@/lib/auth/roles";
+import { rateLimit, type RateLimitResult } from "@/lib/ratelimit/limiter";
 import { PLANS } from "@/lib/constants";
 
 export type GuardResult = { tenant: Tenant } | { error: NextResponse };
+
+const AI_LIMIT_PER_MIN = Number(process.env.RATE_LIMIT_AI_PER_MIN ?? 30);
+
+/** Build a 429 response from a rate-limit result, including Retry-After. */
+function tooManyRequests(rl: RateLimitResult): NextResponse {
+  return NextResponse.json(
+    {
+      error: "rate_limited",
+      message: "You're sending requests too quickly. Please wait a moment and try again.",
+      retryAfter: rl.retryAfterSec,
+    },
+    { status: 429, headers: { "Retry-After": String(rl.retryAfterSec) } },
+  );
+}
+
+/** Generic per-key rate limit for any route. Returns a 429 response when the
+ *  limit is exceeded, or `null` to proceed. */
+export async function enforceRateLimit(
+  key: string,
+  opts: { limit: number; windowSec: number },
+): Promise<NextResponse | null> {
+  const rl = await rateLimit(key, opts);
+  return rl.allowed ? null : tooManyRequests(rl);
+}
 
 /** Role guard for API routes — returns the tenant or a ready 401/403 response. */
 export async function apiRequireRole(min: Role): Promise<GuardResult> {
@@ -22,9 +47,10 @@ export async function apiRequireRole(min: Role): Promise<GuardResult> {
   return { tenant: g.tenant };
 }
 
-/** Gate an AI generation endpoint: require authentication (when configured) and
- *  enforce the org's plan quota for the given metered resource. Returns either
- *  the resolved tenant or a ready-to-send error response (401 / 402). */
+/** Gate an AI generation endpoint: authentication (when configured), role
+ *  (editor+), abuse rate limit (per org), and plan quota for the metered
+ *  resource. Returns the resolved tenant or a ready error response
+ *  (401 / 403 / 429 / 402). */
 export async function guardGeneration(kind: "words" | "images"): Promise<GuardResult> {
   const tenant = await getOptionalTenant();
   if (!tenant) {
@@ -45,6 +71,10 @@ export async function guardGeneration(kind: "words" | "images"): Promise<GuardRe
       ),
     };
   }
+
+  // Abuse protection — caps AI calls per org per minute (protects cost/compute).
+  const rl = await rateLimit(`ai:${tenant.orgId}`, { limit: AI_LIMIT_PER_MIN, windowSec: 60 });
+  if (!rl.allowed) return { error: tooManyRequests(rl) };
 
   const quota = await checkQuota(tenant.orgId, tenant.plan, kind);
   if (!quota.allowed) {

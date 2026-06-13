@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe/server";
-import { apiRequireRole } from "@/lib/api/guard";
+import { apiRequireRole, enforceRateLimit } from "@/lib/api/guard";
 import { getOrgStripeCustomerId } from "@/lib/data/subscription";
 
 export const runtime = "nodejs";
@@ -12,6 +12,9 @@ export async function POST() {
   const guard = await apiRequireRole("admin");
   if ("error" in guard) return guard.error;
   const tenant = guard.tenant;
+
+  const limited = await enforceRateLimit(`stripe:${tenant.orgId}`, { limit: 10, windowSec: 60 });
+  if (limited) return limited;
 
   const stripe = getStripe();
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";

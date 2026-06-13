@@ -35,5 +35,14 @@ export async function wasBlocked(res: Response): Promise<boolean> {
     return true;
   }
 
+  if (res.status === 429) {
+    const data = (await res.json().catch(() => ({}))) as { message?: string; retryAfter?: number };
+    const wait = data.retryAfter ? ` Try again in ${data.retryAfter}s.` : "";
+    toast.error("Slow down", {
+      description: (data.message ?? "You're sending requests too quickly.") + wait,
+    });
+    return true;
+  }
+
   return false;
 }
